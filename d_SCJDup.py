@@ -1,10 +1,34 @@
 from functools import reduce
+from sys import argv
 
-def negate(a):						
-	return '-' if a == '+' else '+'
+def negate(a):	
+	assert(type(a)==str or type(a)==list)
+
+	if type(a) == str:
+		if len(a)==1:	
+			# for a single character (+ or -)				
+			return '-' if a == '+' else '+'
+		else:
+			# for a gene (eg +a, -b)
+			return negate(a[0]) + a[1:]
+	elif type(a) == list:
+		a_negative = ["" for i in range(len(a))]
+		for idx in range(len(a)):
+			a_negative[idx] = negate(a[idx])
+		return a_negative[::-1]
 
 def charListToString(charList):
 	return reduce(lambda x, y: x + y, charList, '')
+
+def genesCompare(chromosome1, chromosome2):
+	assert(type(chromosome1)==list and type(chromosome2==list))
+
+	if charListToString(chromosome1) == charListToString(chromosome2):
+		return True
+	elif charListToString(negate(chromosome1)) == charListToString(chromosome2):
+		return True
+	else:
+		return False
 
 #constructs two lists of three genes each, with the duplicated gene in the centre
 #one list in forward direction, one in reverse
@@ -12,20 +36,26 @@ def getTriplets(chromosome, gene_idx):
 	triplet1 = []
 	triplet2 = []
 	if gene_idx > 0 and gene_idx < len(chromosome)-1:
-		triplet1.append(chromosome[gene_idx-1])
-		triplet2.append(negate(chromosome[gene_idx-1][0]) +  chromosome[gene_idx-1][1:])
-	
-		triplet1.append(chromosome[gene_idx])
-		triplet2.append(negate(chromosome[gene_idx][0]) +  chromosome[gene_idx][1:])
-	
-		triplet1.append(chromosome[gene_idx+1])
-		triplet2.append(negate(chromosome[gene_idx+1][0]) +  chromosome[gene_idx+1][1:])
-	
-		# reverse triplet 2
-		triplet2 = triplet2[::-1]
+		triplet1 = [chromosome[gene_idx-1], chromosome[gene_idx], chromosome[gene_idx+1]]
+		triplet2 = negate(triplet1)
 	return triplet1, triplet2
 
-#def getAdj(chromosome, gene_idx): to be completed
+def getAdj(chromosome, gene_idx):
+	'''
+	get adjacency of a gene  
+	index 0: left adjacency, index 1: right adjacency
+	eg: for chromosome +a+b+c, 	the adjacencies of gene b (idx: 1) are +a+b (or -b-a) and +b+c (or -c-b)
+								the adjacency of gene a (idx: 0) is +a+b (or -b-a)
+								the adjacency of gene c (idx: 2) is +b+c (or -c-b) 
+	''' 
+	adj1 = []
+	adj2 = []
+	if gene_idx > 0:
+		adj1 = [chromosome[gene_idx-1], chromosome[gene_idx]]
+	if gene_idx < len(chromosome)-1:
+		adj2 = [chromosome[gene_idx], chromosome[gene_idx+1]]
+	
+	return adj1, adj2
 
 #pairs up adjacent genes in the list of genes that forms the chromosome
 def pairUp(a):
@@ -55,14 +85,22 @@ def diff(A, B):
 def sym_diff(A, B):
     return len(diff(A, B)) + len(diff(B, A))
 
+if len(argv) < 2:
+	print('Usage: python d_SCjDup.py <genome_file>')
+	exit(1)
 
-string = open("genome.txt", "r").read()
+genome_file = argv[1]
+
+string = open(genome_file, "r").read()
 genomes = string.split("\n")									#Genes S and D are on different lines in the input file
 genomes = [i.strip().split("|") for i in genomes if len(i)]		#Each chromosome in a gene is split by |
 
 #obtained in respective variables as a list of lists
 S = [j.strip().split(" ") for j in genomes[0]]
 D = [j.strip().split(" ") for j in genomes[1]]
+
+print("S: ", S)
+print("D: ", D)
 
 FD = 0	#counter for number of free duplications
 
@@ -124,11 +162,55 @@ for chromosome_idx in range(len(S)):
 							FD += 1
 						elif not is_triplet_found:
 							no_triplet_indices.append( (sublist_chromosome_idx, sublist_gene_idx) )
+					else:
+						no_triplet_indices.append( (sublist_chromosome_idx, sublist_gene_idx) )
 			else:
 				no_triplet_indices = [i for i in found_indices]	
 			
-			#If triplet is NOT found, we assume the TD model. 
+			#If triplet is NOT found, we check for adjacencies (weak ...)
 			if not is_triplet_found:
+				# where the left and right adjacencies were found
+				# index 0: left adjacency, index 1: right adjacency
+				adj_found_at = [None, None]
+
+				for no_triplet_D_chromosome_idx, no_triplet_D_gene_idx in no_triplet_indices:
+					no_triplet_D_chromosome = D[no_triplet_D_chromosome_idx]
+					
+					D_adjacencies = getAdj(no_triplet_D_chromosome, no_triplet_D_gene_idx)
+					S_adjacencies = getAdj(chromosome, gene_idx)
+
+					for S_adj_idx in range(len(S_adjacencies)):
+						S_adj = S_adjacencies[S_adj_idx]
+						
+						if len(S_adj):
+							for D_adj_idx in range(len(D_adjacencies)):
+								D_adj = D_adjacencies[D_adj_idx]
+								
+								if len(D_adj):
+									if genesCompare(S_adj, D_adj):
+										if adj_found_at[S_adj_idx] == None:
+											adj_found_at[S_adj_idx] = (
+												no_triplet_D_chromosome_idx, 
+												# if left adjacency at D is found, it starts with one index less
+												# eg: if S_adj = ab, is matched with D_adjacencies=['ab', 'bx'], the start index is one less for S
+												no_triplet_D_gene_idx - int(not D_adj_idx)
+											)
+											
+				print('Adjacencies of ', chromosome[gene_idx])
+				print('at ', adj_found_at)
+				if adj_found_at[0]:
+					print('Left: ', D[adj_found_at[0][0]][adj_found_at[0][1]:adj_found_at[0][1]+2])
+				if adj_found_at[1]:
+					print('Right: ', D[adj_found_at[1][0]][adj_found_at[1][1]:adj_found_at[1][1]+2])
+
+				print('Found indices: ', found_indices)
+				print('No triplet indices', no_triplet_indices)
+				print('S_adj: ', S_adjacencies)
+				print('D_adj: ', D_adjacencies)
+				# both left and right adjacency
+				# if adj_found_at[0] != None and adj_found_at[1] != None:
+
+
 				S_gene = S_pr[chromosome_idx][gene_idx + gene_idx_offset]
 				print ('S_gene', S_gene)
 				if S_gene[1:] in S_idx_count:
