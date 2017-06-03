@@ -106,14 +106,14 @@ FD = 0	#counter for number of free duplications
 
 #Intermediate genomes S' and D'. These will be the input for the symmetric difference function above.
 #Currently the genomes S and D have been copied as they are to form S' and D'.
-S_pr = [ [i for i in chromosome] for chromosome in S]
+# each gene in S_pr is a list, because they may have tandem duplicates later and we want to maintain the indices
+S_pr = [ [[] for i in chromosome] for chromosome in S]
 D_pr = [ [i for i in chromosome] for chromosome in D]
 
 
 search = [None]*2
 for chromosome_idx in range(len(S)):
 	chromosome = S[chromosome_idx]
-	gene_idx_offset = 0
 	for gene_idx in range(len(chromosome)):
 		gene = chromosome[gene_idx]
 		search[0] = gene 							#searches D for the occurence of the gene
@@ -195,7 +195,7 @@ for chromosome_idx in range(len(S)):
 												# eg: if S_adj = ab, is matched with D_adjacencies=['ab', 'bx'], the start index is one less for S
 												no_triplet_D_gene_idx - int(not D_adj_idx)
 											)
-											
+
 				print('Adjacencies of ', chromosome[gene_idx])
 				print('at ', adj_found_at)
 				if adj_found_at[0]:
@@ -211,17 +211,17 @@ for chromosome_idx in range(len(S)):
 				# if adj_found_at[0] != None and adj_found_at[1] != None:
 
 
-				S_gene = S_pr[chromosome_idx][gene_idx + gene_idx_offset]
+				S_gene = charListToString(S[chromosome_idx][gene_idx])
 				print ('S_gene', S_gene)
 				if S_gene[1:] in S_idx_count:
 					S_idx_count[S_gene[1:]] += 1
 				else:
 					S_idx_count[S_gene[1:]] = 1
-				S_pr[chromosome_idx][gene_idx+gene_idx_offset] += str(S_idx_count[S_gene[1:]])	
+				S_pr[chromosome_idx][gene_idx].append( S_gene + str(S_idx_count[S_gene[1:]]) )
 
 				S_idx_count[S_gene[1:]] += 1
-				S_pr[chromosome_idx] = S_pr[chromosome_idx][0:gene_idx+gene_idx_offset+1] +  [S_gene + str(S_idx_count[S_gene[1:]])] + S_pr[chromosome_idx][gene_idx+gene_idx_offset+1:]
-				gene_idx_offset += 1
+				# S_pr[chromosome_idx] = S_pr[chromosome_idx][0:gene_idx+gene_idx_offset+1] +  [S_gene + str(S_idx_count[S_gene[1:]])] + S_pr[chromosome_idx][gene_idx+gene_idx_offset+1:]
+				# gene_idx_offset += 1
 
 				no_triplet_indices = [i for i in found_indices]	
 
@@ -237,10 +237,17 @@ for chromosome_idx in range(len(S)):
 					
 				D_pr[sublist_chromosome_idx][sublist_gene_idx] += str(D_idx_count[D_gene[1:]])	
 
-			
+for chromosome_idx in range(len(S_pr)):
+	for gene_idx in range(len(S_pr[chromosome_idx])):
+		if len(S_pr[chromosome_idx][gene_idx]) == 0:
+			S_pr[chromosome_idx][gene_idx].append( charListToString(S[chromosome_idx][gene_idx]) )
+
 print('S_pr', S_pr)
 print('D_pr', D_pr)
 print('#Free Dups: ', FD)
+
+# flatten S_pr so that you don't it's a single dimension
+S_pr = [item for sublist in S_pr for item in sublist]
 
 A = pairUp(S_pr)
 B = pairUp(D_pr)
