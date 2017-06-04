@@ -40,6 +40,21 @@ def getTriplets(chromosome, gene_idx):
 		triplet2 = negate(triplet1)
 	return triplet1, triplet2
 
+def updateSprLabel(S_pr, chromosome_idx, gene_idx, new_gene):
+	'''
+	If the gene has no label, we need to label it 
+	'''
+	if len(S_pr[chromosome_idx][gene_idx]):
+		# check if unlabeled 
+		if S_pr[chromosome_idx][gene_idx][-1][-1].isdigit():
+			S_pr[chromosome_idx][gene_idx].append( new_gene )
+		else:
+			S_pr[chromosome_idx][gene_idx] = [new_gene]
+	else:
+		S_pr[chromosome_idx][gene_idx] = [new_gene]
+
+	return S_pr
+
 def getAdj(chromosome, gene_idx):
 	'''
 	get adjacency of a gene  
@@ -56,6 +71,11 @@ def getAdj(chromosome, gene_idx):
 		adj2 = [chromosome[gene_idx], chromosome[gene_idx+1]]
 	
 	return adj1, adj2
+
+def updateIdxCount(S_idx_count, S_gene):
+	if S_gene[1:] not in S_idx_count:
+		S_idx_count[S_gene[1:]] = 1
+	return S_idx_count
 
 #pairs up adjacent genes in the list of genes that forms the chromosome
 def pairUp(a):
@@ -107,28 +127,31 @@ FD = 0	#counter for number of free duplications
 #Intermediate genomes S' and D'. These will be the input for the symmetric difference function above.
 #Currently the genomes S and D have been copied as they are to form S' and D'.
 # each gene in S_pr is a list, because they may have tandem duplicates later and we want to maintain the indices
-S_pr = [ [[] for i in chromosome] for chromosome in S]
+S_pr = [ [[i] for i in chromosome] for chromosome in S]
 D_pr = [ [i for i in chromosome] for chromosome in D]
 
 
 search = [None]*2
 for chromosome_idx in range(len(S)):
-	chromosome = S[chromosome_idx]
-	for gene_idx in range(len(chromosome)):
+	for gene_idx in range(len(S_pr[chromosome_idx])):
+		chromosome = S_pr[chromosome_idx]
+		chromosome = [i[-1] for i in chromosome]
+		print("Chromosome searched: ", chromosome)
+	
 		gene = chromosome[gene_idx]
 		search[0] = gene 							#searches D for the occurence of the gene
 		search[1] = negate(gene[0]) + gene[1:]		#or the the reverse
 
 		found_indices = []							#initializes the list of co-ordinates of occurrences
-		for sublist_chromosome_idx in range(len(D)):	
-			sublist = D[sublist_chromosome_idx]
+		for sublist_chromosome_idx in range(len(D_pr)):	
+			sublist = D_pr[sublist_chromosome_idx]
 			for sublist_gene_idx in range(len(sublist)):
 				sublist_gene = sublist[sublist_gene_idx]
 				if search[0] == sublist_gene or search[1] == sublist_gene:
 					found_indices.append( (sublist_chromosome_idx, sublist_gene_idx) )		#appends the co-ordinates (chromosome number, gene number) to found indices
 		count = len(found_indices)
 
-		if count > 1:								#count>1 implies duplicates exist in D
+		if count > 1:								#count>1 implies duplicates exist in D_pr
 			triplet1, triplet2 = getTriplets(chromosome, gene_idx)   						
 			
 			S_idx_count = {}
@@ -142,7 +165,7 @@ for chromosome_idx in range(len(S)):
 
 				#checks if the triplet from S matches any triplet in D.	
 				for sublist_chromosome_idx, sublist_gene_idx in found_indices:
-					sublist_chromosome = D[sublist_chromosome_idx]
+					sublist_chromosome = D_pr[sublist_chromosome_idx]
 					D_triplet, _ = getTriplets(sublist_chromosome, sublist_gene_idx)
 					#print ('D_triplet', D_triplet)
 
@@ -151,16 +174,29 @@ for chromosome_idx in range(len(S)):
 						triplet1 = charListToString(triplet1)
 						triplet2 = charListToString(triplet2)
 						D_triplet = charListToString(D_triplet)
-						
+						S_gene = charListToString(S[chromosome_idx][gene_idx])
+				
 						if triplet1 == D_triplet:
-							print('Found: ', triplet1)
+							print('Found triplet: ', triplet1)
 							is_triplet_found = True
 							FD += 1
+							
+							S_pr = updateSprLabel( S_pr, chromosome_idx, gene_idx, S_gene + str(S_idx_count[S_gene[1:]]) )
+							D_pr[adj_found_at[0][0]][adj_found_at[0][1]] += str(S_idx_count[S_gene[1:]])
+
+							S_idx_count[S_gene[1:]] += 1
+
 						elif triplet2 == D_triplet:
-							print('Found: ', triplet2)
+							print('Found triplet: ', triplet2)
 							is_triplet_found = True
 							FD += 1
-						elif not is_triplet_found:
+
+							S_pr = updateSprLabel( S_pr, chromosome_idx, gene_idx, S_gene + str(S_idx_count[S_gene[1:]]) )
+							D_pr[adj_found_at[0][0]][adj_found_at[0][1]] += str(S_idx_count[S_gene[1:]])
+
+							S_idx_count[S_gene[1:]] += 1
+
+						else: # elif not is_triplet_found:
 							no_triplet_indices.append( (sublist_chromosome_idx, sublist_gene_idx) )
 					else:
 						no_triplet_indices.append( (sublist_chromosome_idx, sublist_gene_idx) )
@@ -174,7 +210,7 @@ for chromosome_idx in range(len(S)):
 				adj_found_at = [None, None]
 
 				for no_triplet_D_chromosome_idx, no_triplet_D_gene_idx in no_triplet_indices:
-					no_triplet_D_chromosome = D[no_triplet_D_chromosome_idx]
+					no_triplet_D_chromosome = D_pr[no_triplet_D_chromosome_idx]
 					
 					D_adjacencies = getAdj(no_triplet_D_chromosome, no_triplet_D_gene_idx)
 					S_adjacencies = getAdj(chromosome, gene_idx)
@@ -191,51 +227,88 @@ for chromosome_idx in range(len(S)):
 										if adj_found_at[S_adj_idx] == None:
 											adj_found_at[S_adj_idx] = (
 												no_triplet_D_chromosome_idx, 
-												# if left adjacency at D is found, it starts with one index less
-												# eg: if S_adj = ab, is matched with D_adjacencies=['ab', 'bx'], the start index is one less for S
-												no_triplet_D_gene_idx - int(not D_adj_idx)
+												no_triplet_D_gene_idx,
+												D_adj_idx
 											)
 
 				print('Adjacencies of ', chromosome[gene_idx])
 				print('at ', adj_found_at)
+
+				# if left adjacency at D is found, it starts with one index less
+				# eg: if S_adj = ab, is matched with D_adjacencies=['ab', 'bx'], the start index is one less for S
 				if adj_found_at[0]:
-					print('Left: ', D[adj_found_at[0][0]][adj_found_at[0][1]:adj_found_at[0][1]+2])
+					found_gene_idx = adj_found_at[0][1] - int(not adj_found_at[0][2])
+					print('Left: ', D_pr[adj_found_at[0][0]][found_gene_idx:found_gene_idx+2])
 				if adj_found_at[1]:
-					print('Right: ', D[adj_found_at[1][0]][adj_found_at[1][1]:adj_found_at[1][1]+2])
-
-				print('Found indices: ', found_indices)
-				print('No triplet indices', no_triplet_indices)
-				print('S_adj: ', S_adjacencies)
-				print('D_adj: ', D_adjacencies)
-				# both left and right adjacency
-				# if adj_found_at[0] != None and adj_found_at[1] != None:
-
+					found_gene_idx = adj_found_at[1][1] - int(not adj_found_at[1][2])
+					print('Right: ', D_pr[adj_found_at[1][0]][found_gene_idx:found_gene_idx+2])
 
 				S_gene = charListToString(S[chromosome_idx][gene_idx])
-				print ('S_gene', S_gene)
-				if S_gene[1:] in S_idx_count:
+				if adj_found_at[0] != None:
+					S_idx_count = updateIdxCount(S_idx_count, S_gene)
+
+					# left tandem (according to S)
+					S_pr = updateSprLabel( S_pr, chromosome_idx, gene_idx, S_gene + str(S_idx_count[S_gene[1:]]) )
+					D_pr[adj_found_at[0][0]][adj_found_at[0][1]] += str(S_idx_count[S_gene[1:]])
+
 					S_idx_count[S_gene[1:]] += 1
-				else:
-					S_idx_count[S_gene[1:]] = 1
-				S_pr[chromosome_idx][gene_idx].append( S_gene + str(S_idx_count[S_gene[1:]]) )
 
-				S_idx_count[S_gene[1:]] += 1
-				# S_pr[chromosome_idx] = S_pr[chromosome_idx][0:gene_idx+gene_idx_offset+1] +  [S_gene + str(S_idx_count[S_gene[1:]])] + S_pr[chromosome_idx][gene_idx+gene_idx_offset+1:]
-				# gene_idx_offset += 1
+				if adj_found_at[1] != None:
+					S_idx_count = updateIdxCount(S_idx_count, S_gene)
 
-				no_triplet_indices = [i for i in found_indices]	
+					# right tandem (according to S)
+					S_pr = updateSprLabel( S_pr, chromosome_idx, gene_idx, S_gene + str(S_idx_count[S_gene[1:]]) )
+					D_pr[adj_found_at[1][0]][adj_found_at[1][1]] += str(S_idx_count[S_gene[1:]])
 
+					S_idx_count[S_gene[1:]] += 1
+
+				if adj_found_at[0] == None and adj_found_at[1] == None:
+					
+					no_triplet_D_chromosome_idx, no_triplet_D_gene_idx = no_triplet_indices[0]
+					S_idx_count = updateIdxCount(S_idx_count, S_gene)
+
+					# left tandem (according to S)
+					S_pr = updateSprLabel( S_pr, chromosome_idx, gene_idx, S_gene + str(S_idx_count[S_gene[1:]]) )
+					D_pr[no_triplet_D_chromosome_idx][no_triplet_D_gene_idx] += str(S_idx_count[S_gene[1:]])
+
+					S_idx_count[S_gene[1:]] += 1
+
+					for no_triplet_D_chromosome_idx, no_triplet_D_gene_idx in no_triplet_indices[1:]:
+						S_idx_count = updateIdxCount(S_idx_count, S_gene)
+
+						S_pr.append( [[S_gene + str(S_idx_count[S_gene[1:]]) + S_gene + str(S_idx_count[S_gene[1:]])]] )
+						D_pr[no_triplet_D_chromosome_idx][no_triplet_D_gene_idx] += str(S_idx_count[S_gene[1:]])
+						
+						S_idx_count[S_gene[1:]] += 1
+				# no_triplet_indices = [i for i in found_indices]
+
+			else:
+				# floating duplicates
+				S_gene = charListToString(S[chromosome_idx][gene_idx])
+
+				for no_triplet_D_chromosome_idx, no_triplet_D_gene_idx in no_triplet_indices:
+					S_idx_count = updateIdxCount(S_idx_count, S_gene)
+
+					S_pr.append( [[S_gene + str(S_idx_count[S_gene[1:]]) + S_gene + str(S_idx_count[S_gene[1:]])]] )
+					D_pr[no_triplet_D_chromosome_idx][no_triplet_D_gene_idx] += str(S_idx_count[S_gene[1:]])
+					
+					S_idx_count[S_gene[1:]] += 1
+
+					print("added free dup: ", S_pr)
+
+			print("S_pr: ", S_pr)
+			print("D_pr: ", D_pr)
 			#Needs work.	
 			#Assigns appropriate labelling to tandem genes in S_pr and corresponding genes in D_pr		
-			for sublist_chromosome_idx, sublist_gene_idx in no_triplet_indices:
-				D_gene = D_pr[sublist_chromosome_idx][sublist_gene_idx]
-				print('No triplet: ', D_gene)
-				if D_gene[1:] in D_idx_count:
-					D_idx_count[D_gene[1:]] += 1
-				else:
-					D_idx_count[D_gene[1:]] = 1
+			# for sublist_chromosome_idx, sublist_gene_idx in no_triplet_indices:
+			# 	D_gene = D_pr[sublist_chromosome_idx][sublist_gene_idx]
+			# 	print('No triplet: ', D_gene)
+			# 	if D_gene[1:] in D_idx_count:
+			# 		D_idx_count[D_gene[1:]] += 1
+			# 	else:
+			# 		D_idx_count[D_gene[1:]] = 1
 					
-				D_pr[sublist_chromosome_idx][sublist_gene_idx] += str(D_idx_count[D_gene[1:]])	
+			# 	D_pr[sublist_chromosome_idx][sublist_gene_idx] += str(D_idx_count[D_gene[1:]])	
 
 # if no tandem duplicate, add the gene without label
 for chromosome_idx in range(len(S_pr)):
@@ -243,6 +316,7 @@ for chromosome_idx in range(len(S_pr)):
 		if len(S_pr[chromosome_idx][gene_idx]) == 0:
 			S_pr[chromosome_idx][gene_idx].append( charListToString(S[chromosome_idx][gene_idx]) )
 
+print("\n\n\nEnd")
 print('S_pr', S_pr)
 print('D_pr', D_pr)
 print('#Free Dups: ', FD)
