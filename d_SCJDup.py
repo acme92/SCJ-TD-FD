@@ -209,6 +209,8 @@ for chromosome_idx in range(len(S)):
 				# index 0: left adjacency, index 1: right adjacency
 				adj_found_at = [None, None]
 
+				duplicate_adjacency = []
+
 				for no_triplet_D_chromosome_idx, no_triplet_D_gene_idx in no_triplet_indices:
 					no_triplet_D_chromosome = D_pr[no_triplet_D_chromosome_idx]
 					
@@ -230,6 +232,13 @@ for chromosome_idx in range(len(S)):
 												no_triplet_D_gene_idx,
 												D_adj_idx
 											)
+										else:
+											# duplicate adjacency
+											duplicate_adjacency.append((
+												no_triplet_D_chromosome_idx, 
+												no_triplet_D_gene_idx,
+												D_adj_idx
+											))
 
 				print('Adjacencies of ', chromosome[gene_idx])
 				print('at ', adj_found_at)
@@ -280,6 +289,14 @@ for chromosome_idx in range(len(S)):
 						D_pr[no_triplet_D_chromosome_idx][no_triplet_D_gene_idx] += str(S_idx_count[S_gene[1:]])
 						
 						S_idx_count[S_gene[1:]] += 1
+
+				for duplicate_adjaceny_D_chromosome_idx, duplicate_adjaceny_D_gene_idx, _ in duplicate_adjacency:
+					S_idx_count = updateIdxCount(S_idx_count, S_gene)
+
+					S_pr.append( [[S_gene + str(S_idx_count[S_gene[1:]]) + S_gene + str(S_idx_count[S_gene[1:]])]] )
+					D_pr[duplicate_adjaceny_D_chromosome_idx][duplicate_adjaceny_D_gene_idx] += str(S_idx_count[S_gene[1:]])
+					
+					S_idx_count[S_gene[1:]] += 1
 				# no_triplet_indices = [i for i in found_indices]
 
 			else:
