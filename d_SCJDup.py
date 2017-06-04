@@ -237,6 +237,7 @@ for chromosome_idx in range(len(S)):
 					
 				D_pr[sublist_chromosome_idx][sublist_gene_idx] += str(D_idx_count[D_gene[1:]])	
 
+# if no tandem duplicate, add the gene without label
 for chromosome_idx in range(len(S_pr)):
 	for gene_idx in range(len(S_pr[chromosome_idx])):
 		if len(S_pr[chromosome_idx][gene_idx]) == 0:
@@ -247,8 +248,9 @@ print('D_pr', D_pr)
 print('#Free Dups: ', FD)
 
 # flatten S_pr so that you don't it's a single dimension
-S_pr = [item for sublist in S_pr for item in sublist]
+S_pr = [ [ gene for tandem in chromosome for gene in tandem ] for chromosome in S_pr  ]
 
+print('S_pr unwrapped: ', S_pr)
 A = pairUp(S_pr)
 B = pairUp(D_pr)
 
