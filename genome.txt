@@ -1,2 +1,2 @@
-+a +b +c +d | +e +f +h +g
--c -b -a +e +f| +d +e +f +b +f +g | +h +g
+-a +b +c +d | +e +f +g +h
++a +b +b +b -d -c | +g -f -e +e -d -h -g5 -f +f +g
