@@ -15,7 +15,7 @@ PhySca is composed of a set of Python scripts. It requires the following to be a
 Currently, the genes are stored in a text file called genome.txt. We can change the input method later as and when required.
 Running the following command gives the distance between the two input genomes.
 
-python d_SCJDup.py
+python d_SCJDup.py genome.txt
 
 ### Files
 
