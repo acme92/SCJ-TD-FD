@@ -15,7 +15,7 @@ SCJTDFD requires the following to be available:
 Currently, the genes are stored in a text file. We can change the input method later as and when required.
 Running the following command gives the distance between the two input genomes.
 
-python SCJTDFD.py <genomefilename>
+python SCJTDFD.py genomefilename
 
 ### Files
 
