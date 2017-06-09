@@ -1,0 +1,8 @@
+<<<<<<< HEAD
+-a +b +c +d | +e +f +g5 +h
++a +b +b +b -d -c | +g5 -f -e +e -d -h -g5 -f +f +g5
+
+=======
+-a +b +c +d | +e +f +g +h
++a +b +b +b -d -c | +g -f -e +e -d -h -g5 -f +f +g
+>>>>>>> 97beaff2c5109611da022cc985f8d5638dcfc775

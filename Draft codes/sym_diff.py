@@ -13,10 +13,25 @@ def duplicateOrder(A):
     for i in A:
         A_double.append(i)
         # complement
+        count = 0
+        index = 0
+        for idx, val in enumerate(i):
+            #print(idx, val)
+            if val == '+' or val == '-':
+                #print(idx, val)
+                count += 1
+                print(idx, val, count)
+                if count == 2:
+                    index = idx         
+                    print(index)
+
+        print("Opp of adj:", i, ":", negate(i[index]) + i[index+1:] + negate(i[0]) + i[1:index])            
         A_double.append(
-            negate(i[2]) + i[3] +
-            negate(i[0]) + i[1]
+            negate(i[index]) + i[index+1:] +
+            negate(i[0]) + i[1:index]
         )
+               
+    #print("A_double for:", A, ":", A_double)
     return A_double
 
 def diff(A, B):
@@ -26,7 +41,7 @@ def diff(A, B):
 def sym_diff(A, B):
     return len(diff(A, B)) + len(diff(B, A))
     
-string = open("genome.txt", "r").read()
+string = open("genome_simple.txt", "r").read()
 genomes = string.split("\n")
 # remove empty strings
 genomes = [i.strip().split("|") for i in genomes if len(i)]
