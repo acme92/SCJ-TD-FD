@@ -15,7 +15,7 @@ PhySca is composed of a set of Python scripts. It requires the following to be a
 The input files should have the ancestor genome on line 1 and descendant on line 2. All the input files should be in a folder. Currently, the foldername is provided as the input on the command line. We can change the input method later as and when required.
 Running the following command gives the distance between the two input genomes.
 
-python SCJTDFD.py <foldername>
+python SCJTDFD.py foldername
 
 ### Files
 
