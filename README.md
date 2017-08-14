@@ -34,11 +34,8 @@ The input file should have the following format.
 8. For -m, the input file should have at least two genomes.
 
 Example:
-
 Genome 1:
-
 a -b c |
-
 -d e f g )
 
 Genome 2:
