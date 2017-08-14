@@ -2,6 +2,7 @@ from sys import argv
 import random
 from functools import reduce
 import os
+import re
 import functools
 import matplotlib.pyplot as plt
 
@@ -138,9 +139,9 @@ def sort_func(a, b):
 #Main function
 #-----------------------------------------------------------------------------------
 def SCJTDFD(foldername):
-	outputfile = open("run2_results", "w")
+	outputfile = open("test1.txt", "w")
 	file_list = os.listdir(foldername)
-	file_list.sort(key=functools.cmp_to_key(lambda x,y : sort_func(x, y)))
+	#file_list.sort(key=functools.cmp_to_key(lambda x,y : sort_func(x, y)))
 
 	Events = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
 	Probability = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
@@ -158,13 +159,17 @@ def SCJTDFD(foldername):
 	P10 = [[0 for i in range(6)] for j in range(10)]
 	P_rand = [[0 for i in range(6)] for j in range(10)]
 
+	file_number = 0
 	for filename in file_list:
-		file_details = filename.split("_")[0:-1]
-		len_dup = float(file_details[0])
-		p_dup = float(file_details[1])
-		p_inv = 1 - p_dup
-		events = float(file_details[2])
-		true_SCJ = ((p_dup * events * 3) + (p_inv * events * 4))	#Computing true number of SCJ operations
+		file_number += 1
+		print(file_number)
+		print(filename)
+		#file_details = filename.split("_")[0:-1]
+		#len_dup = float(file_details[0])
+		#p_dup = float(file_details[1])
+		#p_inv = 1 - p_dup
+		#events = float(file_details[2])
+		#true_SCJ = ((p_dup * events * 3) + (p_inv * events * 4))	#Computing true number of SCJ operations
 		#true_SCJ = events * 4
 
 		string = open(os.path.join(foldername, filename), "r").read()
@@ -173,7 +178,9 @@ def SCJTDFD(foldername):
 		#---------------------------------------------------------------------------
 
 		genomes = string.split("\n")												#Genomes A and D split by "\n" and obtains as a list of chromosomes
-		genomes = [i.strip().split("|") for i in genomes if len(i)]					#Each chromosome in a genome split by "|"
+		genomes = [i.strip().split("|") for i in genomes if len(i)]					#Each chromosome in a genome split
+		#genomes = [re.split("#" + "\d+" + "_" + "[A-Z]", i) for i in genomes if len(i)]
+		genomes = [[fragment for fragment in i if fragment != " " and fragment] for i in genomes if len(i)]
 		A = [j.strip().split(" ") for j in genomes[0]]								#Each chromosome is obtained as a list of genes
 		D = [j.strip().split(" ") for j in genomes[1]]								#Currently all chromosomes treated linear
 
@@ -290,7 +297,7 @@ def SCJTDFD(foldername):
 						gene_adj_in_D2 = getAdj(D_2[D_chr_idx], D_gene_idx)			#Gets adjacencies of gene in D_2
 						gene_adj_in_A2 = getAdj(A_2[A2_chr_idx], A2_gene_idx)		#As well as in A_2
 
-						for A_adj_side in range(len(gene_adj_in_A2)):				#gene_adj_in_*2[0] => left adj, gene_adj_in_*2[0] => right adj
+						for A_adj_side in range(len(gene_adj_in_A2)):				#gene_adj_in_*2[0] => left adj, gene_adj_in_*2[1] => right adj
 							A_adj = gene_adj_in_A2[A_adj_side]
 
 							if len(A_adj):											#If adjacency exists in A_2
@@ -369,23 +376,23 @@ def SCJTDFD(foldername):
 		#print("Number of TD from arrays:", TD_from_arrays)
 		#print("Number of cuts:", len(diff(A_adj_set, D_adj_set)))
 		#print("Number of joins:", len(diff(D_adj_set, A_adj_set)))					
-		#print("Total distance:", sym_diff(A_adj_set, D_adj_set))					#Computes the symmetric difference between the two adj sets
+		#print("Total dstance:", sym_diff(A_adj_set, D_adj_set))					#Computes the symmetric difference between the two adj sets
 
 		#Output (Stats and related figures)
 		#---------------------------------------------------------------------------
 
 		inferred_SCJ = len(diff(A_adj_set, D_adj_set)) + len(diff(D_adj_set, A_adj_set))	#Inferred SCJ operations = number of cuts + number of joins
-		iter_ratio = true_SCJ / inferred_SCJ													
-		ratio = ratio + iter_ratio
+		#iter_ratio = true_SCJ / inferred_SCJ													
+		#ratio = ratio + iter_ratio
 		iter_count += 1
-
+		'''
 		if iter_count == 50:
 			#print("Average ratio:", ratio/50)										#Ratio of true SCJ operations to inferred for a combination of
 																					#(len(duplication segment), p(duplication), number of events)
 			#P0[event_count] = ratio/50						#Without duplication
 
 			#P_rand[event_count][prob_count] = ratio/50		#Random length of duplication segment	
-
+			
 			if len_dup == 1:
 				P1[event_count][prob_count] = ratio/50		#Duplication segment length = 1	
 			elif len_dup == 2:
@@ -404,10 +411,12 @@ def SCJTDFD(foldername):
 
 		if prob_count == 6:
 			prob_count = 0
+		'''
+		distance = FD + TD + TD_from_arrays + len(diff(A_adj_set, D_adj_set)) + len(diff(D_adj_set, A_adj_set))
 
-		outputfile.write(filename + "\t" + str(FD) + "\t" + str(TD) + "\t" + str(TD_from_arrays) + "\t" + str(len(diff(A_adj_set, D_adj_set))) + "\t" + str(len(diff(D_adj_set, A_adj_set))) + "\n")
+		outputfile.write(filename + "\t" + str(FD) + "\t" + str(TD) + "\t" + str(len(diff(A_adj_set, D_adj_set))) + "\t" + str(len(diff(D_adj_set, A_adj_set))) + "\t" + str(TD_from_arrays) + "\t" + str(distance) + "\n")
 	outputfile.close()
-
+	'''
 	plt.figure(1)
 	plt.plot(Events, P1)
 	plt.xlabel('No. of events')
@@ -433,7 +442,7 @@ def SCJTDFD(foldername):
 	plt.title('SCJ (inferred vs true) with ten gene duplication')
 
 	plt.show()	
-
+	'''
 #-----------------------------------------------------------------------------------
 
 

@@ -1,0 +1,9 @@
+Genome A
+a b c d |
+e f g h )
+
+
+Genome D
+a b -h -g -f b c |
+d e f g h |
+f g h c d |

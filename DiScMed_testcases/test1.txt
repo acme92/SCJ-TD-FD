@@ -1,0 +1,24 @@
+#First genome
+Genome A
+a -b c |
+-d -e f )
+
+
+
+
+
+#Second genome
+Genome D
+
+
+a -b -b b )
+b f c d d e d -c )
+
+#3rd genome
+Genome D1
+
+
+
+c -d e f |
+e d b -a )
+a f c b )
