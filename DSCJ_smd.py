@@ -171,6 +171,47 @@ def distance(filename):
 
 #---------------------------------------------------------------------------
 #Finds scenario with optimal distance to obtain second genome from first genome in the input file
+
+#Pseudocode:
+
+#Remove Tandem arrays if any. Complexity O(n_D)
+#Create a dictionary for A. Complexity O(n_A) 
+#Create an index dictionary for D: Key=gene name, Val=list of positions of gene in D
+#Create a dictionary for D. Created along with index dictionary. Complexity O(n_D)
+#Shuffle positions in A for randomness.
+#
+#For every gene g in A: Complexity O(n_A)
+#	If g is from nontrivial family:
+#		Check for context strongly conserved. Complexity O(copy number of g) 
+#			If instance found: 
+#           	Update all the dictionaries.
+#		If instance found: 
+#			Update list of FDs. Complexity O(copy number of g)
+#		
+#		If not strongly conserved:
+#			Check for conservation of adjacencies on either side. Complexity O(copy number of g)
+#			Check if context weakly conserved: Complexity O(copy number of g)
+#				If instance found:
+# 					Update all the dictionaries.
+#				Else check only if left adj conserved:  
+#					If so, update all the dictionaries accordingly.
+#				Else check only if right adj conserved:  
+#					If so, update all the dictionaries accordingly.
+#				Else: 
+#					Match with the first copy of g in D. Update all the dictionaries.
+#
+#			If weakly conserved:
+#				Update list of FDs for remaining copies. Complexity O(copy number of g)	
+#			Else not conserved:
+#				Update list of FDs for remaining copies. Complexity O(copy number of g)
+#
+#Create an adjacency set of D using the dictionary. Complexity O(n_D)
+#Create an adjacency set of A using the dictionary. Also add FDs. Complexity O(n_D)
+#
+#Find the distance: |A-D| + |D-A| + n_d + TDA																
+
+
+
 def scenario(filename):
 	string = open(filename, "r").read()
 	substrings = string.split("\n")
@@ -322,9 +363,9 @@ def scenario(filename):
 					else:
 						D_dict[(i,j)] = {'Sign': 'Pos', 'LN': D[i][j-1], 'LNIdx': (i,j-1), 'RN': D[i][j+1], 'RNIdx': (i,j+1)}
 
-	outputfile = open("idx1.txt", "w")					
-	for key in Idx_dict:
-		outputfile.write(str(key)+":"+str(len(Idx_dict[key]))+"\n")
+	#outputfile = open("idx1.txt", "w")					
+	#for key in Idx_dict:
+	#	outputfile.write(str(key)+":"+str(len(Idx_dict[key]))+"\n")
 					
 	coords = []										#List of co-ordinates of A, shuffled for randomness							
 	for i in range(len(A)):												
@@ -343,13 +384,13 @@ def scenario(filename):
 			gene = negate(gene)
 
 		if len(Idx_dict[gene]) > 1:
-			strong_context = False 					#Checking for context strongly conserved
+			strong_context = False 															#Checking if context strongly conserved
 			for index in Idx_dict[gene]:
 				if strong_context == False:			
 					if A_dict[gene]['Sign'] == D_dict[index]['Sign']:
 						if A_dict[gene]['LN'] and A_dict[gene]['LN'] == D_dict[index]['LN'] and A_dict[gene]['RN'] and A_dict[gene]['RN'] == D_dict[index]['RN']:
 							strong_context = True
-							LN, RN = A_dict[gene]['LN'], A_dict[gene]['RN']				#Updating A_dict
+							LN, RN = A_dict[gene]['LN'], A_dict[gene]['RN']					#Updating A_dict
 							if LN[0] == '-':
 								A_dict[LN[1:]]['RN'] = A_dict[LN[1:]]['RN']+str('copy')+str(1)
 							else:
@@ -370,7 +411,7 @@ def scenario(filename):
 					else:
 						if A_dict[gene]['LN'] and A_dict[gene]['LN'] == negate(D_dict[index]['RN']) and A_dict[gene]['RN'] and A_dict[gene]['RN'] == negate(D_dict[index]['LN']):
 							strong_context = True
-							LN, RN = A_dict[gene]['LN'], A_dict[gene]['RN']				#Updating A_dict
+							LN, RN = A_dict[gene]['LN'], A_dict[gene]['RN']					#Updating A_dict
 							if LN[0] == '-':
 								A_dict[LN[1:]]['RN'] = A_dict[LN[1:]]['RN']+str('copy')+str(1)
 							else:
@@ -379,8 +420,8 @@ def scenario(filename):
 								A_dict[RN[1:]]['LN'] = A_dict[RN[1:]]['LN']+str('copy')+str(1)
 							else:
 								A_dict[RN]['LN'] = A_dict[RN]['LN']+str('copy')+str(1)
-							A_dict[gene+str('copy')+str(1)] = A_dict[gene]
-							del A_dict[gene]
+							A_dict[gene+str('copy')+str(1)] = A_dict[gene]					#Introduce entry for relabeled gene in A_dict	
+							del A_dict[gene]												#Delete the gene from A_dict since it is now relabeled
 
 							Idx_dict[gene+str('copy')+str(1)] = [index] 					#Updating Idx_dict and D_dict
 							Idx_dict[gene].remove(index)
@@ -388,9 +429,9 @@ def scenario(filename):
 							D_dict[LNIdx]['RN'] = D_dict[LNIdx]['RN']+str('copy')+str(1)
 							D_dict[RNIdx]['LN'] = D_dict[RNIdx]['LN']+str('copy')+str(1)
 
-			if strong_context == True:
+			if strong_context == True:														#If strong conserved context, remaining genes matched with FDs
 				i = 2
-				for index in Idx_dict[gene]:											#Updating list of FDs
+				for index in Idx_dict[gene]:												#Updating list of FDs
 					FD.append(gene+str('copy')+str(i))
 					Idx_dict[gene+str('copy')+str(i)] = [index] 							#Updating D_dict and Idx_dict for each FD
 					LNIdx, RNIdx = D_dict[index]['LNIdx'], D_dict[index]['RNIdx']
@@ -400,20 +441,20 @@ def scenario(filename):
 						D_dict[RNIdx]['LN'] = D_dict[RNIdx]['LN']+str('copy')+str(i)
 					i += 1
 					
-			#Strong context checked. Part 1 ends.
+			#Strong context (Case 1) checked.
 
-			if strong_context == False:
+			if strong_context == False:														#If not found, check for weak context.		
 				left_adj_at, right_adj_at = None, None
-				for index in Idx_dict[gene]:
+				for index in Idx_dict[gene]:												#For every index in D having the gene get right and left neighbors
 					if not left_adj_at:
-						if A_dict[gene]['Sign'] == D_dict[index]['Sign']:
+						if A_dict[gene]['Sign'] == D_dict[index]['Sign']:					#Checking for left adjacency match
 							if A_dict[gene]['LN'] and A_dict[gene]['LN'] == D_dict[index]['LN']:
 								left_adj_at = index
 						else:
 							if A_dict[gene]['LN'] and A_dict[gene]['LN'] == negate(D_dict[index]['RN']):
 								left_adj_at = index
 					if not right_adj_at:
-						if A_dict[gene]['Sign'] == D_dict[index]['Sign']:							
+						if A_dict[gene]['Sign'] == D_dict[index]['Sign']:					#Checking for right adjacency match		
 							if A_dict[gene]['RN'] and A_dict[gene]['RN'] == D_dict[index]['RN']:
 								right_adj_at = index
 						else:
@@ -422,13 +463,12 @@ def scenario(filename):
 
 				if left_adj_at and right_adj_at:
 					TD.append(gene)
-					Idx_dict[gene+str('copy')+str(1)] = [left_adj_at] 					#Updating Idx_dict and D_dict
+					Idx_dict[gene+str('copy')+str(1)] = [left_adj_at] 						#Updating Idx_dict
 					Idx_dict[gene+str('copy')+str(2)] = [right_adj_at]
 					Idx_dict[gene].remove(left_adj_at)
 					Idx_dict[gene].remove(right_adj_at)				
 					
-					if A_dict[gene]['Sign'] == D_dict[left_adj_at]['Sign']:
-						#print("Left sign match")
+					if A_dict[gene]['Sign'] == D_dict[left_adj_at]['Sign']:					#Updating D_dict
 						LNIdx = D_dict[left_adj_at]['LNIdx']
 						RNIdx = D_dict[left_adj_at]['RNIdx']
 						if LNIdx:
@@ -466,8 +506,8 @@ def scenario(filename):
 					A_dict[gene+str('copy')+str(1)] = {'Idx': Idx, 'Sign': Sign, 'LN': LN, 'RN': RN, 'LNIdx': LNIdx, 'RNIdx': RNIdx}
 					A_dict[gene+str('copy')+str(2)] = {'Idx': Idx, 'Sign': Sign, 'LN': LN, 'RN': RN, 'LNIdx': LNIdx, 'RNIdx': RNIdx}
 
-					if LN[0] == '-':
-						A_dict[LN[1:]]['RN'] = A_dict[LN[1:]]['RN']+str('copy')+str(1)
+					if LN[0] == '-':														#Introduce entry for TD in A_dict and relabel
+						A_dict[LN[1:]]['RN'] = A_dict[LN[1:]]['RN']+str('copy')+str(1)		#Delete the gene from A_dict since it is now relabeled
 						A_dict[gene+str('copy')+str(2)]['LN'] = A_dict[LN[1:]]['RN']
 					else:
 						A_dict[LN]['RN'] = A_dict[LN]['RN']+str('copy')+str(1)
@@ -480,11 +520,12 @@ def scenario(filename):
 						A_dict[gene+str('copy')+str(1)]['RN'] = A_dict[RN]['LN']
 					del A_dict[gene]
 
-				elif left_adj_at and not right_adj_at:
-					Idx_dict[gene+str('copy')+str(1)] = [left_adj_at]						#Updating Idx_dict and D_dict
+				#Context not conserved. Check for left match or right match or none	
+				elif left_adj_at and not right_adj_at:										
+					Idx_dict[gene+str('copy')+str(1)] = [left_adj_at]						#Updating Idx_dict
 					Idx_dict[gene].remove(left_adj_at) 
 
-					if A_dict[gene]['Sign'] == D_dict[left_adj_at]['Sign']:
+					if A_dict[gene]['Sign'] == D_dict[left_adj_at]['Sign']:					#Updating D_dict
 						LNIdx = D_dict[left_adj_at]['LNIdx']
 						D_dict[LNIdx]['RN'] = D_dict[LNIdx]['RN']+str('copy')+str(1)
 						RNIdx = D_dict[left_adj_at]['RNIdx']
@@ -500,8 +541,8 @@ def scenario(filename):
 					LN = A_dict[gene]['LN']													#Updating A_dict
 					RN = A_dict[gene]['RN']
 						
-					A_dict[gene+str('copy')+str(1)] = A_dict[gene]
-					del A_dict[gene]
+					A_dict[gene+str('copy')+str(1)] = A_dict[gene]							#Introduce entry for relabeled gene in A_dict
+					del A_dict[gene]														#Delete relabeled gene from A_dict
 
 					if LN:
 						if LN[0] == '-':
@@ -534,8 +575,8 @@ def scenario(filename):
 					LN = A_dict[gene]['LN']													#Updating A_dict
 					RN = A_dict[gene]['RN']
 						
-					A_dict[gene+str('copy')+str(1)] = A_dict[gene]
-					del A_dict[gene]
+					A_dict[gene+str('copy')+str(1)] = A_dict[gene]							#Introduce entry for relabeled gene in A_dict	
+					del A_dict[gene]														#Delete relabeled gene from A_dict
 
 					if LN:
 						if LN[0] == '-':
@@ -567,11 +608,11 @@ def scenario(filename):
 						if RNIdx:
 							D_dict[RNIdx]['RN'] = D_dict[RNIdx]['RN']+str('copy')+str(1)
 
-					LN = A_dict[gene]['LN']												#Updating A_dict
+					LN = A_dict[gene]['LN']													#Updating A_dict
 					RN = A_dict[gene]['RN']
 						
-					A_dict[gene+str('copy')+str(1)] = A_dict[gene]
-					del A_dict[gene]
+					A_dict[gene+str('copy')+str(1)] = A_dict[gene]							#Introduce entry for relabeled gene in A_dict
+					del A_dict[gene]														#Delete relabeled gene from A_dict
 
 					if LN:
 						if LN[0] == '-':
@@ -586,9 +627,9 @@ def scenario(filename):
 
 				if left_adj_at and right_adj_at:
 					i = 3
-					for index in Idx_dict[gene]:												#Updating list of FDs
+					for index in Idx_dict[gene]:											#Updating list of FDs in case of weakly conserved context
 						FD.append(gene+str('copy')+str(i))
-						Idx_dict[gene+str('copy')+str(i)] = [index] 							#Updating D_dict and Idx_dict for each FD
+						Idx_dict[gene+str('copy')+str(i)] = [index] 						#Updating D_dict and Idx_dict for each FD
 						LNIdx, RNIdx = D_dict[index]['LNIdx'], D_dict[index]['RNIdx']
 						if LNIdx:
 							D_dict[LNIdx]['RN'] = D_dict[LNIdx]['RN']+str('copy')+str(i)
@@ -597,9 +638,9 @@ def scenario(filename):
 						i += 1
 				else:
 					i = 2
-					for index in Idx_dict[gene]:												#Updating list of FDs
+					for index in Idx_dict[gene]:											#Updating list of FDs when context not conserved
 						FD.append(gene+str('copy')+str(i))
-						Idx_dict[gene+str('copy')+str(i)] = [index] 							#Updating D_dict and Idx_dict for each FD
+						Idx_dict[gene+str('copy')+str(i)] = [index] 						#Updating D_dict and Idx_dict for each FD
 						LNIdx, RNIdx = D_dict[index]['LNIdx'], D_dict[index]['RNIdx']
 						if LNIdx:
 							D_dict[LNIdx]['RN'] = D_dict[LNIdx]['RN']+str('copy')+str(i)
@@ -607,7 +648,7 @@ def scenario(filename):
 							D_dict[RNIdx]['LN'] = D_dict[RNIdx]['LN']+str('copy')+str(i)
 						i += 1
 
-	D_adj = []						
+	D_adj = []													#Form adjacency set for relabeled genome D'							
 	for x in sorted((k,v) for (k,v) in D_dict.items()):
 		left, right = None, None
 		if x[1]['RNIdx']:
@@ -622,7 +663,7 @@ def scenario(filename):
 				right = (D_dict[x[0]]['RN'], 't')
 			D_adj.append([left, right])
 
-	A_adj = []
+	A_adj = []													#Form adjacency set for relabeled genome A'
 	for x in sorted((v['Idx'],k) for (k,v) in A_dict.items()):
 		left, right = None, None
 		if A_dict[x[1]]['RN']:
@@ -636,15 +677,15 @@ def scenario(filename):
 			else:
 				right = (RN, 't')
 			A_adj.append([left, right])			
-	for x in FD:
+	for x in FD:												#Append (g_h g_t) adjacencies for each FD
 		A_adj.append([(x, 'h'),(x, 't')])
 
-	preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]		#Intersection of adjacency sets, A and D
+	preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]		#Intersection of adjacency sets, A' and D'
 	n_cuts = len(A_adj) - len(preserved_adj)
 	n_joins = len(D_adj) - len(preserved_adj)
 	n_duplicates = len(FD) + len(TD)
 
-	distance = n_cuts + n_joins + n_duplicates + TD_from_arrays
+	distance = n_cuts + n_joins + n_duplicates + TD_from_arrays	#d_DSCJ(A,D) = |A'-D'| + |D'-A'| + n_d + TDA.
 
 
 	print(distance)

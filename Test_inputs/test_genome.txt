@@ -1,3 +1,0 @@
--a +b +c +d | +e +f +g5 +h
-+a +b +b +b -d -c | +g5 -f -e +e -d -h -g5 -f +f +g5
-
