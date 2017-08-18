@@ -208,8 +208,8 @@ def distance(filename):
 	D_adj = listAdj(D)
 
 	preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]		#Intersection of adjacency sets, A and D
-	n_cuts = len(A_adj) - len(preserved_adj)
-	n_joins = len(D_adj) - len(preserved_adj)
+	n_cuts = len(A_adj) - len(preserved_adj)								#Adjacencies seen in A but NOT preserved in D
+	n_joins = len(D_adj) - len(preserved_adj)								#Adjacencies seen in D but NOT preserved from A
 
 	d_DSCJ = n_cuts + n_joins + 2*n_duplicates + TD_from_arrays				#d_DSCJ(A,D) = |A-D| + |D-A| + 2*n_d + TDA.
 
@@ -291,17 +291,17 @@ def scenario(filename):
 	for i in range(len(A)):
 		if chr_type[0][i] == 'L':									
 			for j in range(len(A[i])):								 
-				if j == 0:
+				if j == 0:											#First gene in linear chromosome
 					if A[i][j][0] == '-':							
 						A_dict[negate(A[i][j])] = {'Idx': (i,j), 'Sign': 'Neg', 'LN': None, 'RN': A[i][j+1]}
 					else:
 						A_dict[(A[i][j])] = {'Idx': (i,j), 'Sign': 'Pos', 'LN': None, 'RN': A[i][j+1]}
-				elif j == len(A[i])-1:	
+				elif j == len(A[i])-1:								#Last gene in linear chromosome
 					if A[i][j][0] == '-':
 						A_dict[negate(A[i][j])] = {'Idx': (i,j), 'Sign': 'Neg', 'LN': A[i][j-1], 'RN': None}
 					else:
 						A_dict[(A[i][j])] = {'Idx': (i,j), 'Sign': 'Pos', 'LN': A[i][j-1], 'RN': None}
-				else:
+				else:												
 					if A[i][j][0] == '-':
 						A_dict[negate(A[i][j])] = {'Idx': (i,j), 'Sign': 'Neg', 'LN': A[i][j-1], 'RN': A[i][j+1]}
 					else:
@@ -309,12 +309,12 @@ def scenario(filename):
 		if chr_type[0][i] == 'C':									#If chromosome is circular, add appropriate neighbors for genes at both ends.
 			A[i] = A[i][:-1]										#For e.g.: In (a,b,c) LN of a is c and RN of c is a.
 			for j in range(len(A[i])):
-				if j == 0:
+				if j == 0:											#First gene in circular chromosome
 					if A[i][j][0] == '-':
 						A_dict[negate(A[i][j])] = {'Idx': (i,j), 'Sign': 'Neg', 'LN': A[i][-1], 'RN': A[i][j+1]}
 					else:
 						A_dict[(A[i][j])] = {'Idx': (i,j), 'Sign': 'Pos', 'LN': A[i][-1], 'RN': A[i][j+1]}
-				elif j == len(A[i])-1:	
+				elif j == len(A[i])-1:								#Last gene in circular chromosome
 					if A[i][j][0] == '-':
 						A_dict[negate(A[i][j])] = {'Idx': (i,j), 'Sign': 'Neg', 'LN': A[i][j-1], 'RN': A[i][0]}
 					else:
@@ -330,11 +330,11 @@ def scenario(filename):
 	for i in range(len(D)):
 		if chr_type[1][i] == 'L':									
 			for j in range(len(D[i])):								 
-				if D[i][j][0] == '-':								
+				if D[i][j][0] == '-':										
 					try:
-						Idx_dict[negate(D[i][j])].append((i,j))
+						Idx_dict[negate(D[i][j])].append((i,j))		#Append position to appropriate gene family in Idx_dict
 					except KeyError:
-						Idx_dict[negate(D[i][j])] = [(i,j)]
+						Idx_dict[negate(D[i][j])] = [(i,j)]			#If first instance of gene, create new entry in Idx_dict
 					if j == 0: 
 						D_dict[(i,j)] = {'Sign': 'Neg', 'LN': None, 'LNIdx': None, 'RN': D[i][j+1], 'RNIdx': (i,j+1)}
 					elif j == len(D[i])-1:
@@ -356,10 +356,10 @@ def scenario(filename):
 			D[i] = D[i][:-1]										#For e.g.: In (a,b,c) LN of a is c and RN of c is a.
 			for j in range(len(D[i])):
 				if D[i][j][0] == '-':
-					try:
-						Idx_dict[negate(D[i][j])].append((i,j))
+					try:										
+						Idx_dict[negate(D[i][j])].append((i,j))		#Append position to appropriate gene family in Idx_dict
 					except KeyError:
-						Idx_dict[negate(D[i][j])] = [(i,j)]
+						Idx_dict[negate(D[i][j])] = [(i,j)]			#If first instance of gene, create new entry in Idx_dict
 					if j == 0:
 						D_dict[(i,j)] = {'Sign': 'Neg', 'LN': D[i][-1], 'LNIdx': (i,len(D[i])-1), 'RN': D[i][j+1], 'RNIdx': (i,j+1)}
 					elif j == len(D[i])-1:
@@ -392,31 +392,23 @@ def scenario(filename):
 		if gene[0] == '-':
 			gene = negate(gene)
 
-		if len(Idx_dict[gene]) > 1:
+		if len(Idx_dict[gene]) > 1:					#Enter only if copy number of gene > 1
 			#CASE 1: Context strongly conserved
 			strong_context = 0
 			weak_context = 0 															
-			for index in Idx_dict[gene]:
+			for index in Idx_dict[gene]:			#Iterate through all positions of gene in D (O(copy number of g))									
 				if strong_context == 0:														#Check for strong context if not already found
 					if A_dict[gene]['Sign'] == D_dict[index]['Sign']:
 						if A_dict[gene]['LN'] and A_dict[gene]['LN'] == D_dict[index]['LN'] and A_dict[gene]['RN'] and A_dict[gene]['RN'] == D_dict[index]['RN']:
 							strong_context = 1
 							A_dict = updateA(gene, A_dict)									#Updating A_dict							
-							Idx_dict[gene+str('copy')+str(1)] = [index] 					#Updating Idx_dict and D_dict
-							Idx_dict[gene].remove(index)
-							LNIdx, RNIdx = D_dict[index]['LNIdx'], D_dict[index]['RNIdx']
-							D_dict[LNIdx]['RN'] = D_dict[LNIdx]['RN']+str('copy')+str(1)
-							D_dict[RNIdx]['LN'] = D_dict[RNIdx]['LN']+str('copy')+str(1)
+							Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, index, 1)	#Updating D by relabeling last copy (to original gene in A)					
 					else:
 						if A_dict[gene]['LN'] and A_dict[gene]['LN'] == negate(D_dict[index]['RN']) and A_dict[gene]['RN'] and A_dict[gene]['RN'] == negate(D_dict[index]['LN']):
 							strong_context = 1
 							A_dict = updateA(gene, A_dict)									#Updating A_dict
-							Idx_dict[gene+str('copy')+str(1)] = [index] 					#Updating Idx_dict and D_dict
-							Idx_dict[gene].remove(index)
-							LNIdx, RNIdx = D_dict[index]['LNIdx'], D_dict[index]['RNIdx']
-							D_dict[LNIdx]['RN'] = D_dict[LNIdx]['RN']+str('copy')+str(1)
-							D_dict[RNIdx]['LN'] = D_dict[RNIdx]['LN']+str('copy')+str(1)
-				
+							Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, index, 1)	#Updating D by relabeling last copy (to original gene in A)						
+									
 			if strong_context == 1:															#If strong conserved context, remaining genes matched with FDs
 				FD, Idx_dict, D_dict = updateFD(FD, 2, gene, Idx_dict, D_dict)
 
@@ -441,7 +433,7 @@ def scenario(filename):
 
 				#CASE 2: Context weakly conserved.				
 				if left_adj_at and right_adj_at:
-					weak_context = 1
+					weak_context = 1			
 					TD.append(gene)				
 					
 					Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, left_adj_at, 1)		#Updating D by relabeling left match (to original gene in A)
@@ -452,19 +444,19 @@ def scenario(filename):
 					A_dict[gene+str('copy')+str(1)] = {'Idx': Idx, 'Sign': Sign, 'LN': LN, 'RN': RN}
 					A_dict[gene+str('copy')+str(2)] = {'Idx': Idx, 'Sign': Sign, 'LN': LN, 'RN': RN}
 
-					if LN[0] == '-':														#Introduce entry for TD in A_dict and relabel
-						A_dict[LN[1:]]['RN'] = A_dict[LN[1:]]['RN']+str('copy')+str(1)		#Delete the gene from A_dict since it is now relabeled
+					if LN[0] == '-':														#Relabel original copy of g to gcopy1
+						A_dict[LN[1:]]['RN'] = A_dict[LN[1:]]['RN']+str('copy')+str(1)		#Introduce entry for TD in A_dict, relabel to gcopy2
 						A_dict[gene+str('copy')+str(2)]['LN'] = A_dict[LN[1:]]['RN']
 					else:
 						A_dict[LN]['RN'] = A_dict[LN]['RN']+str('copy')+str(1)
-						A_dict[gene+str('copy')+str(2)]['LN'] = A_dict[LN]['RN']
+						A_dict[gene+str('copy')+str(2)]['LN'] = A_dict[LN]['RN']			
 					if RN[0] == '-':
 						A_dict[RN[1:]]['LN'] = A_dict[RN[1:]]['LN']+str('copy')+str(2)						
 						A_dict[gene+str('copy')+str(1)]['RN'] = A_dict[RN[1:]]['LN']
 					else:
 						A_dict[RN]['LN'] = A_dict[RN]['LN']+str('copy')+str(2)
 						A_dict[gene+str('copy')+str(1)]['RN'] = A_dict[RN]['LN']
-					del A_dict[gene]
+					del A_dict[gene]			#Delete the gene from A_dict since it is now relabeled to gcopy1
 
 				#CASE 3: Context not conserved. Check for one match (left or right).	
 				elif left_adj_at and not right_adj_at:
@@ -480,22 +472,26 @@ def scenario(filename):
 					Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, index, 1)	#Updating D by relabeling last copy (to original gene in A)						
 					A_dict = updateA(gene, A_dict)											#Updating A_dict
 
-				if left_adj_at and right_adj_at:											#If weakly conserved context, remaining genes matched with FDs
+				if left_adj_at and right_adj_at:									#If weakly conserved context, remaining genes matched with FDs
 					FD, Idx_dict, D_dict = updateFD(FD, 3, gene, Idx_dict, D_dict)									
-				else:																		#If context not conserved, remaining genes matched with FDs
+				else:																#If context not conserved, remaining genes matched with FDs
 					FD, Idx_dict, D_dict = updateFD(FD, 2, gene, Idx_dict, D_dict)									
 
-	#All Cases covered. Create adjacency lists from dictionaries				
+	#All Cases covered. Create adjacency lists from dictionaries
+
+	#Logic:
+	#Iterate through sorted dictionary.	
+	#If right neighbor (RN) exists, adjacency is [left neighbor of RN, RN] (head or tail chosen according to orientation)			
 	D_adj = []													#Form adjacency set for relabeled genome D'							
 	for x in sorted((k,v) for (k,v) in D_dict.items()):
-		left, right = None, None
+		left, right = None, None 								#All adjacencies of the format: [(g1,'h'/'t'),(g2,'h'/'t')]
 		if x[1]['RNIdx']:
 			RNIdx = x[1]['RNIdx']
-			if D_dict[RNIdx]['LN'][0] == '-':
+			if D_dict[RNIdx]['LN'][0] == '-':					#Left extremity of adjacency
 				left = (D_dict[RNIdx]['LN'][1:], 't')
 			else:
 				left = (D_dict[RNIdx]['LN'], 'h')
-			if D_dict[x[0]]['RN'][0] == '-': 
+			if D_dict[x[0]]['RN'][0] == '-': 					#Right extremity of adjacency
 				right = (D_dict[x[0]]['RN'][1:], 'h')
 			else:
 				right = (D_dict[x[0]]['RN'], 't')
@@ -503,14 +499,14 @@ def scenario(filename):
 
 	A_adj = []													#Form adjacency set for relabeled genome A'
 	for x in sorted((v['Idx'],k) for (k,v) in A_dict.items()):
-		left, right = None, None
+		left, right = None, None 								#All adjacencies of the format: [(g1,'h'/'t'),(g2,'h'/'t')]	
 		if A_dict[x[1]]['RN']:
 			RN = A_dict[x[1]]['RN']
-			if A_dict[x[1]]['Sign'] == 'Neg':
+			if A_dict[x[1]]['Sign'] == 'Neg':					#Left extremity of adjacency
 				left = (x[1], 't')
 			else:
 				left = (x[1], 'h')
-			if RN[0] == '-':
+			if RN[0] == '-':									#Right extremity of adjacency
 				right = (RN[1:], 'h')
 			else:
 				right = (RN, 't')
