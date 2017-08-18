@@ -5,11 +5,11 @@ if len(argv) < 2:															#Takes file with genomes as argument in command 
 	print('Usage: python input.py <genome_file>')
 	exit(1)
 
-outputfile = open("inputfile.txt", "w")
-
 filename = argv[1]
 string = open(filename, "r").read()
 substrings = string.split("\n")
+
+outputfile = open(argv[2], "w")
 
 i = 0
 
