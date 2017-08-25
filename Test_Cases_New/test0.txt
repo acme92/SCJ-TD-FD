@@ -1,0 +1,16 @@
+#First genome
+Genome A
+Chr1 a -b c )
+Chr2 -d -e f |
+# Chr3 g |
+
+
+
+
+#Second genome
+Genome D
+
+
+Chr1 a -b -b b |
+Chr2 b -f e d d e d -c )
+

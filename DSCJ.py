@@ -1,176 +1,191 @@
+__author__ = "Aniket Mane"
+__email__ = "amane@sfu.ca"
+
+"""
+DSCJ.py implements the algorithm mentioned in the paper "A tractable variant of the Single Cut or Join distance with duplicated genes".
+The following code consists of three main functions:
+1. 	Implementation: python DSCJ.py -d <inputfile>
+	Given a genome A without duplicate genes and genome D having duplicate genes, 
+	compute the SCJTDFD distance between the two.
+2.	Implementation: python DSCJ.py -s <inputfile>
+	Given a genome A without duplicate genes and genome D having duplicate genes, 
+	compute one scenario that can transform A to D under the SCJTDFD model.
+3.	Implementation: python DSCJ.py -m <inputfile>
+	Given a set of genomes having duplicate genes,
+	compute their median genome M having no duplicate genes.
+"""
+
 from sys import argv
-from functools import reduce
-import os
-import functools
-import re
+import random
+import networkx as nx
+import matplotlib.pyplot as plt
+
+
 
 #Using python 3 interpreter
 
 #Function definitions
 #---------------------------------------------------------------------------
-#Lists the extremities of each fragment of input genome
-def listExtremities(genome):
-	fragment_extremities = []
-	for fragment in genome:
-		if fragment[0][0] == '+':
-			fragment_extremities.append(fragment[0][1:] + '_t')
+#A genome is identified by its name and a list of chromosomes. Data type: List of lists.
+#Return genome name.
+def get_genome_name(genome):
+	return genome[0]
+#Return list of chromosomes in the genome.
+def get_genome_chr_list(genome):
+	return genome[1]
+
+#A chromosome has a type (linear or circular) and an ordered set of genes. Data type: List.
+#Return chromosome name.
+def get_chr_name(chromosome):
+	return chromosome[0]
+#Return chromosome type.
+def get_chr_type(chromosome):
+	return chromosome[1]
+#Return list of genes in the chromosome.	
+def get_chr_gene_list(chromosome):
+	return chromosome[2]
+
+#Gene in reverse direction. If gene is a string '-g', returns string 'g'. 
+def reverse(gene):
+	return gene[1:] if gene[0] == '-' else str('-' + gene)
+
+#Check if genome A is trivial. Maintains a list of unique gene families. If same gene family repeats, the genome in non-trivial.
+def check_if_trivial(chromosome, seen, is_trivial):
+	for gene in chromosome:
+		if gene not in seen and reverse(gene) not in seen:
+			seen.add(gene)
 		else:
-			fragment_extremities.append(fragment[0][1:] + '_h')
-		if fragment[-1][0] == '+':
-			fragment_extremities.append(fragment[-1][1:] + '_h')
-		else:
-			fragment_extremities.append(fragment[-1][1:] + '_t')			
-	return fragment_extremities	
+			is_trivial = False
+		return (seen, is_trivial)	
+
+#Forms a list of all gene families in input genome.
+def get_gene_list(chr_list):
+	gene_list = []
+	for chromosome in chr_list:
+		for gene in chromosome[2]:
+			if gene[0] == '-':
+				if reverse(gene) not in gene_list:
+					gene_list.append(reverse(gene))
+			else:
+				if gene not in gene_list:
+					gene_list.append(gene)
+	return gene_list
+
+#Output genome as a list of lists of genes.
+def create_genome(string_list):
+	genome_list = [[]*2 for i in range(2)]
+	chr_list = [[]*3 for i in range(2)]
+	seen = set()															#Set of genes in A to check for trivialness
+	is_trivial = True
+	gene_count = [0,0]														#Maintain a count of number of genes in A and D, respectively
+	 
+	i = -1
+	for line in string_list:
+		if line[-1] not in {')','|'}:
+			i += 1
+			genome_list[i].append(line)
+			genome_list[i].append([])
+		elif line[-1] == '|':
+			line = line.split(' ')
+			line = [x for x in line if x != '|']
+			if i == 0:														#Check trivialness only for A.
+				seen, trivial = check_if_trivial(line[1:], seen, is_trivial)
+			genome_list[i][1].append(line[0])
+			chr_list[i].append([line[0], 'L', line[1:]])
+			gene_count[i] += len(line[1:])
+		elif line[-1] == ')':
+			line = line.split(' ')
+			line[-1] = line[1]
+			if i == 0:														#Check trivialness only for A.
+				seen, trivial = check_if_trivial(line[1:-1], seen, is_trivial)
+			genome_list[i][1].append(line[0])
+			chr_list[i].append([line[0], 'C', line[1:]])
+			gene_count[i] += len(line[1:-1])
+	
+	if trivial == False:													#If gene repeats, A is nontrivial. Terminate program.
+		print("Error message: Ancestor genome must be trivial.")
+		quit()
+	if set(get_gene_list(chr_list[0])) != set(get_gene_list(chr_list[1])):		#If different set of gene families, terminate program.
+		print("Error message: Ancestor and descendant genomes have different sets of gene families.")
+		quit()		
+	return (genome_list, chr_list, gene_count)	
+
+#Counts TD from Arrays and reduces genome
+def reduceGenome(chr_list):
+	TD_from_arrays = 0														#Maintain a count of TD from arrays.
+	for chromosome in chr_list:										
+		for gene_idx in range(len(chromosome[2])):
+			while gene_idx < len(chromosome[2]) - 1:
+				if chromosome[2][gene_idx] == chromosome[2][gene_idx + 1]:		#Remove tandem arrays, if any.
+					del chromosome[2][gene_idx]	
+					TD_from_arrays += 1
+				else:
+					gene_idx += 1
+	return (chr_list, TD_from_arrays)
 
 #Forms adjacency list of input genome
-def listAdj(genome):
-	adj_list = []
-	for fragment in genome:
-		for idx in range(len(fragment) - 1):
-			if fragment[idx][0] == '+':
-				left = fragment[idx][1:] + '_h'
+def get_adj_list(chr_list):
+	adj_list = []															#List of adjacencies where 
+	for chromosome in chr_list:												#every adjacency is of the format:
+		for gene_idx in range(len(chromosome[2]) - 1):							#[(g1,'h'/'t'),(g2,'h'/'t')]
+			if chromosome[2][gene_idx][0] == '-':
+				left = (chromosome[2][gene_idx][1:], 't')
 			else:
-				left = fragment[idx][1:] + '_t'
-			if fragment[idx + 1][0] == '+':
-				right = fragment[idx + 1][1:] + '_t'
+				left = (chromosome[2][gene_idx], 'h')
+			if chromosome[2][gene_idx + 1][0] == '-':
+				right = (chromosome[2][gene_idx + 1][1:], 'h')
 			else:
-				right = fragment[idx + 1][1:] + '_h'
+				right = (chromosome[2][gene_idx + 1], 't')
 			adj_list.append([left, right])
 	return adj_list
 
 
-#Main function
+#Main functions
 #---------------------------------------------------------------------------
-def DSCJ(foldername):
-	outputfile = open("results_1.txt", "w")
-	outputfile.write("filename \tnd \tcuts \tjoins \tTDA \td_DSCJ \tweak_cuts \tweak_joins \n")
-	file_list = os.listdir(foldername)
+#Finds distance between the two given genomes in the input file
+def distance(filename):
+	string = open(filename, "r").read()
+	string_list = string.split("\n")
+	string_list = [line for line in string_list if line and line[0] != '#']	#Read line only if it is nonempty and not a comment.
 
-	file_number = 0
+	genome_list, chr_list, gene_count = create_genome(string_list)
 
-	for filename in file_list:
-		string = open(os.path.join(foldername, filename), "r").read()
+	A = chr_list[0]			
+	D = chr_list[1]
+	
+	D, TD_from_arrays = reduceGenome(D)
+	
+	gene_count[1] -= TD_from_arrays											#Number of genes in D after removing tandem arrays.
+	n_duplicates = gene_count[1] - gene_count[0]							#Number of genes in D - number of genes in A
 
-		file_number += 1
-		print(file_number,": ", filename)
+	A_adj = get_adj_list(A)
+	D_adj = get_adj_list(D)
 
-		#Preprocessing
-		#-------------------------------------------------------------------
-		genomes = string.split("\n")										#Splits file into genomes and then splits genomes into individual fragments
-		#genomes_test = [re.findall("#\d+_[AUX]", i) for i in genomes if len(i)]
+	preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]		#Intersection of adjacency sets, A and D
+	n_cuts = len(A_adj) - len(preserved_adj)								#Adjacencies seen in A but NOT preserved in D
+	n_joins = len(D_adj) - len(preserved_adj)								#Adjacencies seen in D but NOT preserved from A
 
-		frag_A = []
-		frag_U = []
-		frag_X = []
-		for seq in genomes:
-			if len(seq) > 0:
-				frag_A_curr = re.findall("#\d+_A[0-9 +-|]*", seq)
-				frag_A.append(frag_A_curr)
+	d_DSCJ = n_cuts + n_joins + 2*n_duplicates + TD_from_arrays				#d_DSCJ(A,D) = |A-D| + |D-A| + 2*n_d + TDA.
 
-				frag_U_curr = re.findall("\d+_U[0-9 +-|]*", seq)
-				frag_U.append(frag_U_curr)
+	print(d_DSCJ)
+	print(n_cuts)
+	print(n_joins)
+	print(n_duplicates)
+	print(TD_from_arrays)
 
-				frag_X_curr = re.findall("\d+_X[0-9 +-|]*", seq)
-				frag_X.append(frag_X_curr)
-
-		genomeA_A = [j.strip().split(" ") for j in frag_A[0]]								
-		genomeA_A = [fragment[1:] for fragment in genomeA_A]
-		genomeA_A = [fragment for fragment in genomeA_A if fragment]
-
-		genomeD_A = [j.strip().split(" ") for j in frag_A[1]]
-		genomeD_A = [fragment[1:] for fragment in genomeD_A]
-		genomeD_A = [fragment for fragment in genomeD_A if fragment]
-
-		genomeA_U = [j.strip().split(" ") for j in frag_U[0]]								
-		genomeA_U = [fragment[1:] for fragment in genomeA_U]
-		genomeA_U = [fragment for fragment in genomeA_U if fragment]
-
-		genomeD_U = [j.strip().split(" ") for j in frag_U[1]]
-		genomeD_U = [fragment[1:] for fragment in genomeD_U]
-		genomeD_U = [fragment for fragment in genomeD_U if fragment]
-
-		genomeA_X = [j.strip().split(" ") for j in frag_X[0]]								
-		genomeA_X = [fragment[1:] for fragment in genomeA_X]
-		genomeA_X = [fragment for fragment in genomeA_X if fragment]
-
-		genomeD_X = [j.strip().split(" ") for j in frag_X[1]]
-		genomeD_X = [fragment[1:] for fragment in genomeD_X]
-		genomeD_X = [fragment for fragment in genomeD_X if fragment]
-
-		TD_from_arrays = 0
-		A = [genomeA_A, genomeA_U, genomeA_X]
-		D = [genomeD_A, genomeD_U, genomeD_X]
-
-		for chr_type in D:				
-			for chr_idx in range(len(chr_type)):
-				gene_idx = 0
-				while gene_idx < len(chr_type[chr_idx]) - 1:
-					if chr_type[chr_idx][gene_idx] == chr_type[chr_idx][gene_idx + 1]:
-						
-						print((chr_type[chr_idx]))
-						del chr_type[chr_idx][gene_idx]
-						print((chr_type[chr_idx]))
-						TD_from_arrays += 1
-					else:
-						gene_idx = gene_idx + 1
-						
-		#Main Program
-		#-------------------------------------------------------------------
-
-		nA_A_genes = sum(len(fragment) for fragment in A[0])				#counts #genes in A and D' and #duplicates accordingly
-		nD_A_genes = sum(len(fragment) for fragment in D[0])
-		nA_U_genes = sum(len(fragment) for fragment in A[1])
-		nD_U_genes = sum(len(fragment) for fragment in D[1])
-		nA_X_genes = sum(len(fragment) for fragment in A[2])
-		nD_X_genes = sum(len(fragment) for fragment in D[2])
-		nA_genes = nA_A_genes + nA_U_genes + nA_X_genes
-		nD_genes = nD_A_genes + nD_U_genes + nD_X_genes
-		n_duplicates = nD_genes - nA_genes
-		print(n_duplicates)
-
-		
-
-		A_A_extremities = listExtremities(A[0])								#lists extremities of A and D'
-		A_U_extremities = listExtremities(A[1])
-		A_X_extremities = listExtremities(A[2])
-		D_A_extremities = listExtremities(D[0])
-		D_U_extremities = listExtremities(D[1])
-		D_X_extremities = listExtremities(D[2])
-
-		A_A_adjset = listAdj(A[0])											#lists adjacency sets of A and D'
-		A_U_adjset = listAdj(A[1])
-		A_X_adjset = listAdj(A[2])
-		D_A_adjset = listAdj(D[0])
-		D_U_adjset = listAdj(D[1])
-		D_X_adjset = listAdj(D[2])
-
-		weak_cuts = []
-		weak_joins = []
-
-		for adjacency in A_adjset:											#lists weak cuts
-			if adjacency[0] in D_extremities and adjacency[1] in D_extremities:
-				weak_cuts.append(adjacency)
-
-		for adjacency in D_adjset:											#lists weak joins
-			if adjacency[0] in A_extremities and adjacency[1] in A_extremities:
-				if not adjacency in weak_joins:
-					weak_joins.append(adjacency)
-
-		preserved_adj = [adj for adj in A_adjset if adj in D_adjset or list(reversed(adj)) in D_adjset]		#intersection of adjacency sets, A and D'
-		n_cuts = len(A_adjset) - len(preserved_adj)
-		n_joins = len(D_adjset) - len(preserved_adj)
-
-		d_DSCJ = len(A_adjset) + len(D_adjset) - 2*len(preserved_adj) + 2*n_duplicates + TD_from_arrays
-
-		outputfile.write(filename + "\t" + str(n_duplicates) + "\t" + str(n_cuts) + "\t" + str(n_joins) + "\t" + str(TD_from_arrays) + "\t" + str(d_DSCJ) + "\t" + str(len(weak_cuts)) + "\t\t" + str(len(weak_joins)) + "\n")
-		
-	outputfile.close()
 
 #Input
 #---------------------------------------------------------------------------
-if len(argv) < 2:															#Takes file with genomes as argument in command line
-	print('Usage: python d_SCjDup.py <genome_file>')
+if len(argv) < 3:															#Takes file with genomes as argument in command line		
+	print('Usage: python DSCJ_smd.py -d/-s/-m <genome_file>')
 	exit(1)
 
-foldername = argv[1]
-DSCJ(foldername)
+if argv[1] == '-d':
+	distance(argv[2])
+elif argv[1] == '-s':
+	scenario(argv[2])
+elif argv[1] == '-m':
+	median(argv[2])
+else:
+	print('Incorrect usage')
+	print('Usage: python DSCJ_smd.py -d/-s/-m <genome_file>')
