@@ -1,7 +1,7 @@
 #First genome
 Genome A
-a -b c )
--d -e f |
+Chr1 a -b c )
+Chr2 -d -e f |
 # g |
 
 
@@ -11,5 +11,5 @@ a -b c )
 Genome D
 
 
-a -b a b c )
-b -f e d e d -c )
+Chr1 a -b a b c )
+Chr2 b -f e d e d -c )

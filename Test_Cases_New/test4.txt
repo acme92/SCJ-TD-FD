@@ -1,9 +1,9 @@
 Genome A
-a b c d |
-e f g h )
+Chr1 a b c d |
+Chr2 e f g h )
 
 
 Genome D
-a b -h -g -f b c |
-d e f g h |
-f g h c d |
+Chr1 a b -h -g -f b c |
+Chr2 d e f g h |
+Chr3 f g h c d )
