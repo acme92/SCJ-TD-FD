@@ -24,22 +24,21 @@ import matplotlib.pyplot as plt
 
 #Using python 3 interpreter
 
-#Function definitions
+#Auxiliary Functions
 #---------------------------------------------------------------------------
-#A genome is identified by its name and a list of chromosomes. Data type: List of lists of strings.
-#Set genome data (use better words)
-def make_genome_list(genome_list, genome_name, i): #if i = 0 => A else => D
+#A genome is identified by its name and a list of chromosomes.
+#Genome = [Name, [List of names of chromosomes]]. Data types: [String, [List of Strings]]
+
+#Update genome list and initiate list for chromosome names. For the distance and scenario code, i = 0 => A, i = 1 => D
+def make_genome_list(genome_list, genome_name, i):
 	genome_list[i].append(genome_name)		
 	genome_list[i].append([])
 	return genome_list
 
+#Update genome list by adding list of chromosome names for each genome.
 def list_genome_chr(genome_list, chr_name, i):
 	genome_list[i][1].append(chr_name)
 	return genome_list
-
-def list_chr_data(chr_list, chromosome, chr_type, i):
-	chr_list[i].append([chromosome[0], chr_type, chromosome[1:]])
-	return chr_list
 
 #Return genome name.
 def get_genome_name(genome):
@@ -48,7 +47,14 @@ def get_genome_name(genome):
 def get_genome_chr_list(genome):
 	return genome[1]
 
-#A chromosome has a type (linear or circular) and an ordered set of genes. Data type: List of strings.
+#Each chromosome has a type (linear or circular) and a set of ordered genes.
+#Chromosome = [Name, Type, [List of ordered genes]]. Data types: [String, String, [List of Strings]]
+
+#Update list of chromosomes by storing chromosome data.
+def list_chr_data(chr_list, chromosome, chr_type, i):
+	chr_list[i].append([chromosome[0], chr_type, chromosome[1:]])
+	return chr_list
+
 #Return chromosome name.
 def get_chr_name(chromosome):
 	return chromosome[0]
@@ -65,30 +71,25 @@ def get_gene_by_posn(chromosome, j):
 	else:
 		return chromosome[2][j]
 
-#A gene is characterised by its family, a unique name within its family and its orientation. Data type: String.
-# Return the family of a gene g
-def get_gene_posn(g):
-    return(g[0])
-# Test the orientation of a gene
-def get_gene_orientation(g):
-    return(g[1])
-def get_left_neighbor(g):
-	return(g[2])
-def get_right_neighbor(g):
-	return(g[3])
-def get_left_neighbor_posn(g):
-	return(g[4])
-def get_right_neighbor_posn(g):
-	return(g[5])
+#A gene is characterised by its family, an orientation (BACKWARD or FORWARD) and its neighbors.
+#The information about all the genes is captured in dictionaries (defined in the scenario function)
+#Every entry in the gene dictionary has the following list of values for every key:
+#[Gene posn, Orientation, Left neighbor, Right neighbor, Posn of left neighbor, Posn of right neighbor]
+#Data type: [(Int,Int), String, String, String, (Int,Int), (Int,Int)]
 
-#Gene in reverse direction. If gene is a string '-g', returns string 'g'. 
+#Each gene has an orientation. If it has orientation ('-g'/'g'), this function returns the opposite ('g'/'-g')  
 def reverse(gene):
 	if gene:
 		return gene[1:] if gene[0] == '-' else str('-' + gene)
 	else:
 		return None
 
-#Check if genome A is trivial. Maintains a list of unique gene families. If same gene family repeats, the genome in non-trivial.
+#Note: Since the distance function does not use specific data of the gene, 
+#the functions to set/obtain gene information have been defined before the scenario function
+
+#Check if genome A is trivial. Maintains a set of unique gene families. If same gene family repeats, the genome in non-trivial.
+#The input is the set of 'seen' unique genes and a Boolean is_trivial (0 if trivial, 1 if not) and a chromosome.
+#The output is the set 'seen' and the Boolean is_trivial after checking the chromosome for repeating genes.
 def check_if_trivial(chromosome, seen, is_trivial):
 	for gene in chromosome:
 		if gene not in seen and reverse(gene) not in seen:
@@ -98,6 +99,8 @@ def check_if_trivial(chromosome, seen, is_trivial):
 		return (seen, is_trivial)	
 
 #Forms a list of all gene families in input genome.
+#The input is the list of chromosomes (as defined above)
+#The output is a list of the names of gene families in the genome. 
 def get_gene_list(chr_list):
 	gene_list = []
 	for chromosome in chr_list:
@@ -110,7 +113,20 @@ def get_gene_list(chr_list):
 					gene_list.append(gene)
 	return gene_list
 
-#Output genome as a list of lists of genes.
+def get_chr_gene_set(chromosome):
+	gene_set = set()
+	for gene in chromosome[2]:
+		if gene[0] == '-':
+			if reverse(gene) not in gene_set:
+				gene_set.add(reverse(gene))
+		else:
+			if gene not in gene_set:
+				gene_set.add(gene)
+	return gene_set
+
+#Retrieve genome data from text file (name of function to be changed)
+#Input is the list of strings read from the file (after removing comments and blank lines)
+#Return a list of genomes, chromosomes (as defined above) and gene count for each genome.
 def create_genome(string_list):
 	genome_list = [[]*2 for i in range(2)]
 	chr_list = [[]*3 for i in range(2)]
@@ -120,10 +136,10 @@ def create_genome(string_list):
 	 
 	i = -1
 	for line in string_list:
-		if line[-1] not in {')','|'}:
+		if line[-1] not in {')','|'}:										#If not '|' or ')', then line provides genome name
 			i += 1
 			genome_list = make_genome_list(genome_list, line, i)
-		elif line[-1] == '|':
+		elif line[-1] == '|':												#Linear chromosome
 			line = line.split(' ')
 			line = [x for x in line if x != '|']
 			genome_list = list_genome_chr(genome_list, line[0], i)
@@ -131,7 +147,7 @@ def create_genome(string_list):
 			gene_count[i] += len(line[1:])
 			if i == 0:														#Check trivialness only for A.
 				seen, trivial = check_if_trivial(line[1:], seen, is_trivial)			
-		elif line[-1] == ')':
+		elif line[-1] == ')':												#Circular chromosome	
 			line = line.split(' ')
 			line[-1] = line[1]
 			genome_list = list_genome_chr(genome_list, line[0], i)
@@ -143,29 +159,70 @@ def create_genome(string_list):
 	if trivial == False:													#If gene repeats, A is nontrivial. Terminate program.
 		print("Error message: Ancestor genome must be trivial.")
 		quit()
-	if set(get_gene_list(chr_list[0])) != set(get_gene_list(chr_list[1])):		#If different set of gene families, terminate program.
+
+	if set(get_gene_list(chr_list[0])) != set(get_gene_list(chr_list[1])):	#If different set of gene families, terminate program.
 		print("Error message: Ancestor and descendant genomes have different sets of gene families.")
 		quit()		
 	return (genome_list, chr_list, gene_count)	
 
-#Counts TD from Arrays and reduces genome
-def reduceGenome(chr_list):
-	TD_from_arrays = 0														#Maintain a count of TD from arrays.
-	for chromosome in chr_list:										
-		for gene_idx in range(len(chromosome[2])):
+#Counts TD from Arrays and removes them.
+def remove_TDA(chr_list):
+	TD_from_arrays = 0
+	for chromosome in chr_list:
+		gene_idx = 0
+		if chromosome[1] == 'C':
 			while gene_idx < len(chromosome[2]) - 1:
-				if chromosome[2][gene_idx] == chromosome[2][gene_idx + 1]:		#Remove tandem arrays, if any.
-					del chromosome[2][gene_idx]	
-					TD_from_arrays += 1
+				if len(chromosome[2]) > 2:
+					if chromosome[2][gene_idx] == chromosome[2][gene_idx + 1]:
+						del chromosome[2][gene_idx]
+						TD_from_arrays += 1
+					else:
+						gene_idx += 1
 				else:
 					gene_idx += 1
+		elif chromosome[1] == 'L':
+			for gene_idx in range(len(chromosome[2])):
+				while gene_idx < len(chromosome[2]) - 1:
+					if chromosome[2][gene_idx] == chromosome[2][gene_idx + 1]:	#Remove tandem arrays, if any.
+						del chromosome[2][gene_idx]	
+						TD_from_arrays += 1
+					else:
+						gene_idx += 1
 	return (chr_list, TD_from_arrays)
 
+#Counts single-gene circular chromosomes (SGCC) that are duplicates and removes them
+def remove_SGCC(chr_list):
+	SGCC = []
+	seen_set = set()
+	i = 0
+	SFD = 0
+	for chromosome in chr_list:
+		if chromosome[1] == 'C' and len(chromosome[2]) == 2:
+			SGCC.append(i)
+		else:
+			seen_set = seen_set.union(get_chr_gene_set(chromosome))
+		i += 1
+	for i in SGCC:
+		gene = chr_list[i - SFD][2][0]
+		if gene in seen_set or reverse(gene) in seen_set:
+			del chr_list[i - SFD]
+			SFD += 1
+		else:
+			if gene[0] == '-':
+				seen_set.add(gene[1:])
+			else:
+				seen_set.add(gene)	
+	return chr_list, SFD			
+
+
+
 #Forms adjacency list of input genome
+#Obtains the genome as a list of chromosomes
+#Iterates through each chromosome to form a list of adjacencies of neighboring genes
 def get_adj_list(chr_list):
 	adj_list = []															#List of adjacencies where 
 	for chromosome in chr_list:												#every adjacency is of the format:
-		for gene_idx in range(len(chromosome[2]) - 1):							#[(g1,'h'/'t'),(g2,'h'/'t')]
+		for gene_idx in range(len(chromosome[2]) - 1):						#[(g1,'h'/'t'),(g2,'h'/'t')]
 			if chromosome[2][gene_idx][0] == '-':
 				left = (chromosome[2][gene_idx][1:], 't')
 			else:
@@ -180,7 +237,7 @@ def get_adj_list(chr_list):
 
 
 
-#Main functions
+#Distance function
 #---------------------------------------------------------------------------
 #Finds distance between the two given genomes in the input file
 def distance(filename):
@@ -193,9 +250,10 @@ def distance(filename):
 	A = chr_list[0]			
 	D = chr_list[1]
 	
-	D, TD_from_arrays = reduceGenome(D)
+	D, TD_from_arrays = remove_TDA(D)
+	D, SGCC = remove_SGCC(D)
 	
-	gene_count[1] -= TD_from_arrays											#Number of genes in D after removing tandem arrays.
+	gene_count[1] -= TD_from_arrays	+ SGCC									#Number of genes in D after removing tandem arrays and SGCC
 	n_duplicates = gene_count[1] - gene_count[0]							#Number of genes in D - number of genes in A
 
 	A_adj = get_adj_list(A)
@@ -205,28 +263,35 @@ def distance(filename):
 	n_cuts = len(A_adj) - len(preserved_adj)								#Adjacencies seen in A but NOT preserved in D
 	n_joins = len(D_adj) - len(preserved_adj)								#Adjacencies seen in D but NOT preserved from A
 
-	d_DSCJ = n_cuts + n_joins + 2*n_duplicates + TD_from_arrays				#d_DSCJ(A,D) = |A-D| + |D-A| + 2*n_d + TDA.
+	d_DSCJ = n_cuts + n_joins + 2*n_duplicates + TD_from_arrays	+ SGCC		#d_DSCJ(A,D) = |A-D| + |D-A| + 2*n_d + TDA.
 
 	print(d_DSCJ)
 	print(n_cuts)
 	print(n_joins)
 	print(n_duplicates)
 	print(TD_from_arrays)
+	print(SGCC)
 
 
+
+#Functions required for Scenario code
 #---------------------------------------------------------------------------
+#As discussed earlier, the following information is required for every gene:
+#Gene family name, Orientation and its left and right neighbors.
+
+#Assign gene family name
 def set_gene_family(gene):
 	if gene[0] == '-':
 		return gene[1:]
 	else:
 		return gene
-
+#Assign orientation of gene
 def set_gene_orientation(gene):
 	if gene[0] == '-':
 		return 'BACKWARD'
 	else:
 		return 'FORWARD'
-
+#Using the position of gene in the chromosome, find its left neighbor
 def set_left_neighbor(chromosome, j):
 	if j == 0:
 		if get_chr_type(chromosome) == 'L':
@@ -235,7 +300,7 @@ def set_left_neighbor(chromosome, j):
 			return get_gene_by_posn(chromosome, -1)
 	else:
 		return get_gene_by_posn(chromosome, j-1)
-
+#Using the position of gene in the chromosome, find its right neighbor
 def set_right_neighbor(chromosome, j):
 	if j == len(chromosome[2]) - 1:
 		if get_chr_type(chromosome) == 'L':
@@ -244,7 +309,7 @@ def set_right_neighbor(chromosome, j):
 			return get_gene_by_posn(chromosome, 0)
 	else:
 		return get_gene_by_posn(chromosome, j+1)
-
+#Using the position of gene in the genome, find the position of its left neighbor
 def left_neighbor_posn(chromosome, posn):
 	i, j = posn[0], posn[1]
 	if j == 0:
@@ -254,7 +319,7 @@ def left_neighbor_posn(chromosome, posn):
 			return (i, len(chromosome[2]) - 1)
 	else:
 		return (i, j-1)
-
+#Using the position of gene in the genome, find the position its right neighbor
 def right_neighbor_posn(chromosome, posn):
 	i, j = posn[0], posn[1]
 	if j == len(chromosome[2]) - 1:
@@ -264,6 +329,20 @@ def right_neighbor_posn(chromosome, posn):
 			return (i, 0)
 	else:
 		return (i, j+1)
+
+#The following functions return the features of the gene and information about its neighborhood from the dictionary entry
+def get_gene_posn(g):
+    return(g[0])
+def get_gene_orientation(g):
+    return(g[1])    
+def get_left_neighbor(g):
+	return(g[2])
+def get_right_neighbor(g):
+	return(g[3])
+def get_left_neighbor_posn(g):
+	return(g[4])
+def get_right_neighbor_posn(g):
+	return(g[5])
 
 #Updates A_dict by relabeling gene matched with gene in A
 def updateA(gene, A_dict):
@@ -285,7 +364,7 @@ def updateA(gene, A_dict):
 #Updates Idx_dict and D_dict by relabeling gene matched with gene in A
 def updateD(gene, Idx_dict, A_dict, D_dict, posn, i):
 	Idx_dict[gene+str('copy')+str(i)] = [posn]								#Update Idx_dict by introducing entry gcopy'i'
-	Idx_dict[gene].remove(posn)											#and removing corresponding index from Idx_dict[g]
+	Idx_dict[gene].remove(posn)												#and removing corresponding index from Idx_dict[g]
 
 	LNIdx, RNIdx = get_left_neighbor_posn(D_dict[posn]), get_right_neighbor_posn(D_dict[posn])			#Left and right neighbors in D
 	if LNIdx: D_dict[LNIdx][3] = D_dict[LNIdx][3]+str('copy')+str(i) 		#If LN exists, relabel its right neighbor
@@ -293,7 +372,7 @@ def updateD(gene, Idx_dict, A_dict, D_dict, posn, i):
 		
 	return Idx_dict, D_dict
 
-#Updates list of Floating Duplicates
+#Updates list of Floating Duplicates and the labels of genes matched with floating duplicates in Idx_dict and D_dict
 def updateFD(FD, i, gene, Idx_dict, D_dict):
 	for posn in Idx_dict[gene]:
 		FD.append(gene+str('copy')+str(i))									
@@ -304,7 +383,7 @@ def updateFD(FD, i, gene, Idx_dict, D_dict):
 		i += 1
 	return(FD, Idx_dict, D_dict)
 
-
+#Scenario function
 #---------------------------------------------------------------------------
 #Finds scenario with optimal distance to obtain second genome from first genome in the input file
 
@@ -356,9 +435,10 @@ def scenario(filename):
 	A = chr_list[0]			
 	D = chr_list[1]
 	
-	D, TD_from_arrays = reduceGenome(D)
+	D, TD_from_arrays = remove_TDA(D)
+	D, SGCC = remove_SGCC(D)
 	
-	A_dict = {}
+	A_dict = {}		#Dictionary for A. Key = Gene Family Name. Value = (Sign, Left neighbor, Left neighbor index, Right neighbor, Right neighbor index)
 
 	for i in range(len(A)):		
 		if get_chr_type(A[i]) == 'C':
@@ -370,9 +450,6 @@ def scenario(filename):
 														set_left_neighbor(A[i],j),
 														set_right_neighbor(A[i],j)
 													]
-			
-	#print(A_dict)
-
 
 	Idx_dict = {}	#Dictionary for indices. Key = Gene family, Value = List of positions of g in D. 
 	D_dict = {}		#Dictionary for D. Key = Index. Value = (Sign, Left neighbor, Left neighbor index, Right neighbor, Right neighbor index)
@@ -394,8 +471,6 @@ def scenario(filename):
 								right_neighbor_posn(D[i],(i,j))		
 							]
 
-	#print(D_dict)
-
 	coords = []										#List of co-ordinates of A, shuffled for randomness							
 	for i in range(len(A)):												
 		for j in range(len(A[i][2])):
@@ -409,7 +484,7 @@ def scenario(filename):
 		gene = get_gene_by_posn(A[i],j)
 		gene = set_gene_family(gene)
 
-		if len(Idx_dict[gene]) > 1:			#Enter only if copy number of gene > 1
+		if len(Idx_dict[gene]) > 1:			#Enter block only if copy number of gene > 1
 			#CASE 1: Context strongly conserved
 			strong_context = 0
 			weak_context = 0 
@@ -419,7 +494,7 @@ def scenario(filename):
 		 				if (get_left_neighbor(A_dict[gene]) and get_left_neighbor(A_dict[gene]) == get_left_neighbor(D_dict[posn]) and
 		 						get_right_neighbor(A_dict[gene]) and get_right_neighbor(A_dict[gene]) == get_right_neighbor(D_dict[posn])):
 		 					strong_context = 1
-		 					A_dict = updateA(gene, A_dict)									#Updating A_dict
+		 					A_dict = updateA(gene, A_dict)									
 		 					Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, posn, 1)
 		 			else:
 		 				if (get_left_neighbor(A_dict[gene]) and get_left_neighbor(A_dict[gene]) == reverse(get_right_neighbor(D_dict[posn])) and
@@ -479,17 +554,17 @@ def scenario(filename):
 
 				#Case 3:
 				elif left_adj_at and not right_adj_at:
-					Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, left_adj_at, 1)		#Updating D by relabeling left match (to original gene in A)						
-					A_dict = updateA(gene, A_dict)													#Updating A_dict
+					Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, left_adj_at, 1)	#Updating D by relabeling left match 						
+					A_dict = updateA(gene, A_dict)												#Updating A_dict
 
 				elif right_adj_at and not left_adj_at:
-					Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, right_adj_at, 1)		#Updating D by relabeling right match (to original gene in A)						
-					A_dict = updateA(gene, A_dict)													#Updating A_dict
+					Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, right_adj_at, 1)	#Updating D by relabeling right match 						
+					A_dict = updateA(gene, A_dict)												#Updating A_dict
 
 				#CASE 4: Context not conserved. No adjacency conserved.			
 				else:
 					Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, posn, 1)	#Updating D by relabeling last copy (to original gene in A)						
-					A_dict = updateA(gene, A_dict)											#Updating A_dict
+					A_dict = updateA(gene, A_dict)										#Updating A_dict
 
 				if left_adj_at and right_adj_at:									#If weakly conserved context, remaining genes matched with FDs
 					FD, Idx_dict, D_dict = updateFD(FD, 3, gene, Idx_dict, D_dict)									
@@ -506,11 +581,11 @@ def scenario(filename):
 		left, right = None, None 								#All adjacencies of the format: [(g1,'h'/'t'),(g2,'h'/'t')]
 		if x[1][5]:
 			RNIdx = x[1][5]
-			if D_dict[RNIdx][2][0] == '-':					#Left extremity of adjacency
+			if D_dict[RNIdx][2][0] == '-':						#Left extremity of adjacency
 				left = (D_dict[RNIdx][2][1:], 't')
 			else:
 				left = (D_dict[RNIdx][2], 'h')
-			if D_dict[x[0]][3][0] == '-': 					#Right extremity of adjacency
+			if D_dict[x[0]][3][0] == '-': 						#Right extremity of adjacency
 				right = (D_dict[x[0]][3][1:], 'h')
 			else:
 				right = (D_dict[x[0]][3], 't')
@@ -546,10 +621,12 @@ def scenario(filename):
 
 	print(distance)
 	print(n_cuts, n_joins)			
-	print(len(FD), len(TD), TD_from_arrays)
+	print(len(FD), len(TD), TD_from_arrays, SGCC)
 
 
 
+#Functions required for Median code
+#---------------------------------------------------------------------------
 
 #Adjacency weight function
 def wtAdj(adj, adj_list):
@@ -592,50 +669,73 @@ def MWMedges(G, total_adj_list):
 			disc_adj.append(tuple(adj))
 	return((kept_adj, disc_adj))
 
-
+#Median function
 #---------------------------------------------------------------------------
 #Finds the median of all given genomes in the input file
-'''
 def median(filename):
 	string = open(filename, "r").read()
 	string_list = string.split("\n")
 	string_list = [line for line in string_list if line and line[0] != '#']
 	genome_list = []
+	chr_list = []
+
 	i = -1
 	for line in string_list:
-		if line[-1] not in {')','|'}:
+		if line and line[-1] not in {')','|'}:
 			i += 1
+			genome_list.append([])
+			chr_list.append([])
 			genome_list = make_genome_list(genome_list, line, i)
 		elif line[-1] == '|':
 			line = line.split(' ')
 			line = [x for x in line if x != '|']
 			genome_list = list_genome_chr(genome_list, line[0], i)
+			chr_list = list_chr_data(chr_list, line, 'L', i)
 		else:
 			line = line.split(' ')
-			line[-1] = line[0]
+			line[-1] = line[1]
 			genome_list = list_genome_chr(genome_list, line[0], i)
+			chr_list = list_chr_data(chr_list, line, 'C', i)		
 
-	TD_from_arrays = [0] * len(genomes)
+	TD_from_arrays = [0] * len(genome_list)
+	SGCC = [0] * len(genome_list)
 	i = 0
-	for genome in genome_list:
-		for chromosome in genome:				
-			for gene_idx in range(len(chromosome[2])):
+	for genome in chr_list:
+		genome, TD_from_arrays[i] = remove_TDA(genome)
+		genome, SGCC[i] = remove_SGCC(genome)
+		'''
+		for chromosome in chr_list:
+			gene_idx = 0
+			if chromosome[1] == 'C':
 				while gene_idx < len(chromosome[2]) - 1:
-					if chromosome[2][gene_idx] == chromosome[2][gene_idx + 1]:
-						del chromosome[2][gene_idx]
-						TD_from_arrays[i] += 1
-						print(TD_from_arrays[i])
+					if len(chromosome[2]) > 2:
+						if chromosome[2][gene_idx] == chromosome[2][gene_idx + 1]:
+							del chromosome[2][gene_idx]
+							TD_from_arrays[i] += 1
+						else:
+							gene_idx += 1
 					else:
 						gene_idx += 1
+			elif chromosome[1] == 'L':
+				for gene_idx in range(len(chromosome[2])):
+					while gene_idx < len(chromosome[2]) - 1:
+						if chromosome[2][gene_idx] == chromosome[2][gene_idx + 1]:	#Remove tandem arrays, if any.
+							del chromosome[2][gene_idx]	
+							TD_from_arrays[i] += 1
+						else:
+							gene_idx += 1
+		'''
 		i += 1
 
-	adj_list = []
+
+
+	adj_list = [] #list of adjs per genome
 	total_gene_list = []	
-	for genome in genome_list:
+	for genome in chr_list:
 		adj_list.append(get_adj_list(genome))
 		total_gene_list = list(set(total_gene_list + get_gene_list(genome)))
 
-	total_adj_list = []
+	total_adj_list = [] #set of adj of all genomes
 	for genome in adj_list:
 		for adj in genome:
 			if adj in total_adj_list or adj[::-1] in total_adj_list:
@@ -647,21 +747,12 @@ def median(filename):
 	M = nx.max_weight_matching(G)
 	print(M)
 	print(MWMedges(G, total_adj_list))
-	
+
 	pos=nx.spring_layout(G)
 	nx.draw(G,pos,with_labels=True)
 	nx.draw_networkx_edge_labels(G,pos)
 	plt.axis('off')
 	plt.show()
-'''
-
-
-
-
-
-					
-						
-					
 
 
 
