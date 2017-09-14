@@ -20,8 +20,8 @@ Use the following command to run the script:
 python DSCJ_smd.py -s/-m/-d <inputfile>
 
 Use -s for computing the optimal scenario
-	-m for computing the median
-	-d for computing the distance between two genomes
+    -m for computing the median
+    -d for computing the distance between two genomes
 
 The input file should have the following format.
 1. Each genome should start with the genome name followed by the genome itself from the next non-empty and non-commented line.
