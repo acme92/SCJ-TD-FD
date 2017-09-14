@@ -621,7 +621,7 @@ def scenario(filename):
 	n_joins = len(D_adj) - len(preserved_adj)					#Adjacencies seen in D' but NOT preserved from A'
 	n_duplicates = len(FD) + len(TD)
 
-	distance = n_cuts + n_joins + n_duplicates + TD_from_arrays	+ SGCC 	#d_DSCJ(A,D) = |A'-D'| + |D'-A'| + n_d + TDA + SGCC.
+	distance = n_cuts + n_joins + n_duplicates + TD_from_arrays	+ SGCC 	fget#d_DSCJ(A,D) = |A'-D'| + |D'-A'| + n_d + TDA + SGCC.
 
 	print(distance)
 	print(n_cuts, n_joins)			
