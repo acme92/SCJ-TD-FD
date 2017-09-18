@@ -17,7 +17,7 @@ The code is composed of a set of Python scripts. It requires the following to be
 
 Use the following command to run the script:
 
-python DSCJ_smd.py -s/-m/-d <inputfile>
+python DSCJ.py -s/-m/-d <inputfile>
 
 Use -s for computing the optimal scenario
     -m for computing the median
@@ -46,5 +46,5 @@ e -f g |
 
 Three main files:
 The main python script DSCJ_smd.py.
-Another script to run the main script recursively for all files in the folder.
+A script to format the input as required.
 The output file.

@@ -78,7 +78,8 @@ def get_gene_by_posn(chromosome, j):
 #[Gene posn, Orientation, Left neighbor, Right neighbor, Posn of left neighbor, Posn of right neighbor]
 #Data type: [(Int,Int), String, String, String, (Int,Int), (Int,Int)]
 
-#Each gene has an orientation. If it has orientation ('-g'/'g'), this function returns the opposite ('g'/'-g')  
+#Each gene has an orientation. If it has orientation ('-g'/'g'), this function returns the opposite ('g'/'-g')
+#the function returns 'None' if the input itself was 'None'.  
 def reverse(gene):
     if gene:
         return gene[1:] if gene[0] == '-' else str('-' + gene)
@@ -106,13 +107,17 @@ def check_if_trivial(chromosome, seen, is_trivial):
 def get_gene_list(chr_list):
     gene_list = []
     for chromosome in chr_list:
+        chromosome[2] = [item for item in chromosome[2] if item != '']
         for gene in chromosome[2]:
-            if gene[0] == '-':
-                if reverse(gene) not in gene_list:
-                    gene_list.append(reverse(gene))
+            if gene != '':
+                if gene[0] == '-':
+                    if reverse(gene) not in gene_list:
+                        gene_list.append(reverse(gene))
+                else:
+                    if gene not in gene_list:
+                        gene_list.append(gene)
             else:
-                if gene not in gene_list:
-                    gene_list.append(gene)
+                print('Found instance')
     return gene_list
 
 #Forms a list of all gene families in input chromosome.
@@ -165,7 +170,15 @@ def get_genome_data(string_list):
         print("Error message: Ancestor genome must be trivial.")
         quit()
 
+    #print(chr_list[0])
+    #print(chr_list[1])
+
+    #chr_list[0] = [item for item in chr_list[0] if item != '']
+    #chr_list[1] = [item for item in chr_list[1] if item != '']
+
     if set(get_gene_list(chr_list[0])) != set(get_gene_list(chr_list[1])):  #If different set of gene families, terminate program.
+        #print(set(get_gene_list(chr_list[0])))
+        #print(set(get_gene_list(chr_list[1])))
         print("Error message: Ancestor and descendant genomes have different sets of gene families.")
         quit()      
     return (genome_list, chr_list, gene_count)  
@@ -621,7 +634,7 @@ def scenario(filename):
     n_joins = len(D_adj) - len(preserved_adj)                   #Adjacencies seen in D' but NOT preserved from A'
     n_duplicates = len(FD) + len(TD)
 
-    distance = n_cuts + n_joins + n_duplicates + TD_from_arrays + SGCC  fget#d_DSCJ(A,D) = |A'-D'| + |D'-A'| + n_d + TDA + SGCC.
+    distance = n_cuts + n_joins + n_duplicates + TD_from_arrays + SGCC  #d_DSCJ(A,D) = |A'-D'| + |D'-A'| + n_d + TDA + SGCC.
 
     print(distance)
     print(n_cuts, n_joins)          

@@ -1,9 +1,0 @@
-Genome A
-Chr1 a b c d |
-Chr2 e f g h )
-
-
-Genome D
-Chr1 a b -h -g -f b c |
-Chr2 d e f g h |
-Chr3 f g h c d )
