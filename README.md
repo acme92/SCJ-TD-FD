@@ -1,4 +1,4 @@
-## dSCJTDFD: the directed Single Cut or Join distance with tandem Duplications and Floating Duplications
+## dSCJTDFD: the directed Single Cut or Join distance with Tandem Duplications and Floating Duplications
 Pedro Feijao, Aniket Mane, Cedric Chauve  
 School of Computing Science and Department of Mathematics, Simon Fraser University  
 Contact: cedric.chauve@sfu.ca
