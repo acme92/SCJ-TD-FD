@@ -18,7 +18,6 @@ The following code consists of three main functions:
 from sys import argv
 import random
 import networkx as nx
-import matplotlib.pyplot as plt
 
 
 
@@ -116,8 +115,6 @@ def get_gene_list(chr_list):
                 else:
                     if gene not in gene_list:
                         gene_list.append(gene)
-            else:
-                print('Found instance')
     return gene_list
 
 #Forms a list of all gene families in input chromosome.
@@ -137,7 +134,7 @@ def get_chr_gene_set(chromosome):
 #Retrieve genome data from text file
 #Input is the list of strings read from the file (after removing comments and blank lines)
 #Return a list of genomes, chromosomes (as defined above) and gene count for each genome.
-def get_genome_data(string_list):
+def get_genome_data(string_list, logfile):   
     genome_list = [[]*2 for i in range(2)]
     chr_list = [[]*3 for i in range(2)]
     seen = set()                                                            #Set of genes in A to check for trivialness
@@ -165,29 +162,27 @@ def get_genome_data(string_list):
             gene_count[i] += len(line[1:-1])
             if i == 0:                                                      #Check trivialness only for A.
                 seen, trivial = check_if_trivial(line[1:-1], seen, is_trivial)
+
+    logfile.write('No. of chromosomes in A: \t'+str(len(chr_list[0]))+'\n')
+    logfile.write('No. of chromosomes in D: \t'+str(len(chr_list[1]))+'\n')
+    logfile.write('\nNo. of genes in A = '+str(gene_count[0])+'\n')
+    logfile.write('No. of genes in D = '+str(gene_count[1])+'\n')
                 
     if trivial == False:                                                    #If gene repeats, A is nontrivial. Terminate program.
-        print("Error message: Ancestor genome must be trivial.")
+        logfile.write("Error message: Ancestor genome must be trivial.")
         quit()
-
-    #print(chr_list[0])
-    #print(chr_list[1])
-
-    #chr_list[0] = [item for item in chr_list[0] if item != '']
-    #chr_list[1] = [item for item in chr_list[1] if item != '']
-
+    
     if set(get_gene_list(chr_list[0])) != set(get_gene_list(chr_list[1])):  #If different set of gene families, terminate program.
-        #print(set(get_gene_list(chr_list[0])))
-        #print(set(get_gene_list(chr_list[1])))
-        print("Error message: Ancestor and descendant genomes have different sets of gene families.")
+        logfile.write("Error message: Ancestor and descendant genomes have different sets of gene families.")
         quit()      
     return (genome_list, chr_list, gene_count)  
 
 #Counts TD from Arrays and removes them.
 #Input is a genome (list of chromosomes)
 #Output is the reduced genome and the count of TD from arrays
-def remove_TDA(chr_list):
+def remove_TDA(chr_list,logfile):
     TD_from_arrays = 0
+    gene_count = 0
     for chromosome in chr_list:
         gene_idx = 0
         if chromosome[1] == 'C':                                    #For circular genomes, len(list of genes) >/= 2,
@@ -200,24 +195,37 @@ def remove_TDA(chr_list):
                         gene_idx += 1
                 else:
                     gene_idx += 1
+            gene_count += len(chromosome[2]) - 1     
         elif chromosome[1] == 'L':
-            for gene_idx in range(len(chromosome[2])):
-                while gene_idx < len(chromosome[2]) - 1:
+            #for gene_idx in range(len(chromosome[2])):
+            while gene_idx < len(chromosome[2]) - 1:
+                if len(chromosome[2]) > 1:
                     if chromosome[2][gene_idx] == chromosome[2][gene_idx + 1]:  #Remove tandem arrays, if any.
                         del chromosome[2][gene_idx] 
                         TD_from_arrays += 1
                     else:
                         gene_idx += 1
-    return (chr_list, TD_from_arrays)
+                else:
+                    gene_idx += 1
+            gene_count += len(chromosome[2])  
+    '''        
+    for chromosome in chr_list:
+        if chromosome[1] == 'C':
+            gene_count += len(chromosome[2]) - 1
+        else:
+            gene_count += len(chromosome[2]) 
+    '''        
+    return (chr_list, TD_from_arrays, gene_count)
 
 #Counts single-gene circular chromosomes (SGCC) that are duplicates and removes them
 #Input is a genome (list of chromosomes)
 #Output is the reduced genome and the count of SGCC that can be deleted
-def remove_SGCC(chr_list):
+def remove_SGCC(chr_list,logfile):
     SGCC = []
     seen_set = set()
     i = 0
     count = 0
+    gene_count = 0
     for chromosome in chr_list:
         if chromosome[1] == 'C' and len(chromosome[2]) == 2:    #Check if chromosome is circular and of length 2 after removal of tandem arrays
             SGCC.append(i)                              
@@ -233,8 +241,13 @@ def remove_SGCC(chr_list):
             if gene[0] == '-':
                 seen_set.add(gene[1:])
             else:
-                seen_set.add(gene)  
-    return chr_list, count          
+                seen_set.add(gene)
+    for chromosome in chr_list:
+        if chromosome[1] == 'C':
+            gene_count += len(chromosome[2]) - 1
+        else:
+            gene_count += len(chromosome[2])            
+    return (chr_list, count, gene_count)          
 
 #Forms adjacency list of input genome
 #Obtains the genome as a list of chromosomes
@@ -259,37 +272,41 @@ def get_adj_list(chr_list):
 #Distance function
 #---------------------------------------------------------------------------
 #Finds distance between the two given genomes in the input file
-def distance(filename):
-    string = open(filename, "r").read()
+def distance(inputfilename, outputfile, logfile):
+    string = open(inputfilename, "r").read()
     string_list = string.split("\n")
     string_list = [line for line in string_list if line and line[0] != '#'] #Read line only if it is nonempty and not a comment.
 
-    genome_list, chr_list, gene_count = get_genome_data(string_list)
+    genome_list, chr_list, gene_count = get_genome_data(string_list, logfile)
 
     A = chr_list[0]         
     D = chr_list[1]
+
+    D, TD_from_arrays, gene_count[1] = remove_TDA(D, logfile)                              #Remove tandem arrays and duplicate single gene circular chromosomes
+    logfile.write("\nNo.of genes in D after removing TDAs: "+str(gene_count[1]))
+    D, SGCC, gene_count[1] = remove_SGCC(D, logfile)
+    logfile.write("\nNo.of genes in D after removing duplicate SGCCs: "+str(gene_count[1])+'\n')  
     
-    D, TD_from_arrays = remove_TDA(D)                                       #Remove tandem arrays and duplicate single gene circular chromosomes
-    D, SGCC = remove_SGCC(D)
-    
-    gene_count[1] -= TD_from_arrays + SGCC                                  #Number of genes in D after removing tandem arrays and SGCC
+    #gene_count[1] -= TD_from_arrays + SGCC                                  #Number of genes in D after removing tandem arrays and SGCC
+    #logfile.write("\nNo.of genes in D after removing easy duplicate: "+str(gene_count[1])+'\n') 
     n_duplicates = gene_count[1] - gene_count[0]                            #Number of genes in D - number of genes in A
 
     A_adj = get_adj_list(A)
     D_adj = get_adj_list(D)
 
     preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]      #Intersection of adjacency sets, A and D
+    logfile.write('\nNo. of adjacencies in common: '+str(len(preserved_adj))+'\n')
     n_cuts = len(A_adj) - len(preserved_adj)                                #Adjacencies seen in A but NOT preserved in D
     n_joins = len(D_adj) - len(preserved_adj)                               #Adjacencies seen in D but NOT preserved from A
 
     d_DSCJ = n_cuts + n_joins + 2*n_duplicates + TD_from_arrays + SGCC      #d_DSCJ(A,D) = |A-D| + |D-A| + 2*n_d + TDA.
 
-    print(d_DSCJ)
-    print(n_cuts)
-    print(n_joins)
-    print(n_duplicates)
-    print(TD_from_arrays)
-    print(SGCC)
+    outputfile.write('DSCJ distance \t\t= ' + str(d_DSCJ) + '\n')
+    outputfile.write('No. of cuts   \t\t= ' + str(n_cuts) + '\n')
+    outputfile.write('No. of joins  \t\t= ' + str(n_joins) + '\n')
+    outputfile.write('No. of duplicates  \t= ' + str(n_duplicates) + '\n')
+    outputfile.write('No. of TDA    \t\t= ' + str(TD_from_arrays) + '\n')
+    outputfile.write('No. of SGCC   \t\t= ' + str(SGCC) + '\n')
 
 
 
@@ -444,18 +461,20 @@ def updateFD(FD, i, gene, Idx_dict, D_dict):
 #
 #Find the distance: |A-D| + |D-A| + n_d + TDA
 
-def scenario(filename):
+def scenario(filename, outputfile, logfile):
     string = open(filename, "r").read()
     string_list = string.split("\n")
     string_list = [line for line in string_list if line and line[0] != '#'] #Read line only if it is nonempty and not a comment.
 
-    genome_list, chr_list, gene_count = get_genome_data(string_list)
+    genome_list, chr_list, gene_count = get_genome_data(string_list, logfile)
 
     A = chr_list[0]         
     D = chr_list[1]
     
-    D, TD_from_arrays = remove_TDA(D)                       #Remove tandem arrays and duplicate single gene circular chromosomes
-    D, SGCC = remove_SGCC(D)
+    D, TD_from_arrays, gene_count[1] = remove_TDA(D, logfile)                              #Remove tandem arrays and duplicate single gene circular chromosomes
+    logfile.write("\nNo.of genes in D after removing TDAs: "+str(gene_count[1]))
+    D, SGCC, gene_count[1] = remove_SGCC(D, logfile)
+    logfile.write("\nNo.of genes in D after removing duplicate SGCCs: "+str(gene_count[1])+'\n')
     
     A_dict = {}     #Dictionary for A. KEY = Gene Family Name. VALUE = (Sign, Left neighbor, Left neighbor index, Right neighbor, Right neighbor index)
     for i in range(len(A)):     
@@ -486,7 +505,7 @@ def scenario(filename):
                                 set_right_neighbor(D[i],j),
                                 left_neighbor_posn(D[i],(i,j)),
                                 right_neighbor_posn(D[i],(i,j))     
-                            ]
+                            ]                        
 
     coords = []                                     #List of co-ordinates of genes in A, shuffled for randomness                            
     for i in range(len(A)):                                             
@@ -547,7 +566,7 @@ def scenario(filename):
                 #Case 2: Weak context
                 if left_adj_at and right_adj_at:    #If both adjacencies preserved (and strong context not found) => weak context found 
                     weak_context = 1
-                    TD.append(gene)
+                    TD.append(gene+str('copy')+str(2))
                     #Update Idx_dict and D by creating an entry for copy1 and copy2 and relabeling accordingly
                     Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, left_adj_at, 1)      
                     Idx_dict, D_dict = updateD(gene, Idx_dict, A_dict, D_dict, right_adj_at, 2)
@@ -591,6 +610,10 @@ def scenario(filename):
                 else:                                                               #If context not conserved, remaining genes matched with FDs
                     FD, Idx_dict, D_dict = updateFD(FD, 2, gene, Idx_dict, D_dict)                              
 
+    logfile.write('\n\nNo. of Floating Duplicates:\t'+str(len(FD)))                
+    logfile.write('\n\nList of Floating Duplicates:\t'+str(FD))
+    logfile.write('\n\nNo. of Tandem Duplicates:\t'+str(len(TD)))
+    logfile.write('\n\nList of Tandem Duplicates:\t'+str(TD))                
     #All Cases covered. Create adjacency lists from dictionaries
 
     #Logic:
@@ -630,20 +653,72 @@ def scenario(filename):
         A_adj.append([(x, 'h'),(x, 't')])   
 
     preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]      #Intersection of adjacency sets, A' and D'
+    logfile.write('\n\nNo. of adjacencies in common: '+str(len(preserved_adj))+'\n')
     n_cuts = len(A_adj) - len(preserved_adj)                    #Adjacencies seen in A' but NOT preserved in D'
     n_joins = len(D_adj) - len(preserved_adj)                   #Adjacencies seen in D' but NOT preserved from A'
     n_duplicates = len(FD) + len(TD)
 
     distance = n_cuts + n_joins + n_duplicates + TD_from_arrays + SGCC  #d_DSCJ(A,D) = |A'-D'| + |D'-A'| + n_d + TDA + SGCC.
 
-    print(distance)
-    print(n_cuts, n_joins)          
-    print(len(FD), len(TD), TD_from_arrays, SGCC)
+    outputfile.write('DSCJ distance \t\t= ' + str(distance) + '\n')
+    outputfile.write('No. of cuts   \t\t= ' + str(n_cuts) + '\n')
+    outputfile.write('No. of joins  \t\t= ' + str(n_joins) + '\n')
+    outputfile.write('No. of duplicates  \t= ' + str(n_duplicates) + '\n')
+    outputfile.write('No. of TDA    \t\t= ' + str(TD_from_arrays) + '\n')
+    outputfile.write('No. of SGCC   \t\t= ' + str(SGCC) + '\n')
 
 
 
 #Functions required for Median code
 #---------------------------------------------------------------------------
+#Filters out gene families that do not occur in all genomes
+#Find the intersection set of gene families of all genomes
+#For each genome, 
+#   For each chromosome, 
+#       For every gene,
+#           If gene isn't in intersection
+#               Remove gene
+#               If circular chromosome, make it linear as follows and proceed. Eg: (a,-b,c,-d) --del('c')--> [b,-a,d]
+#               If linear genome, cut just before gene and create new linear chromosome from just after gene. Eg: [a,-b,c,-d,e] --del('c')--> [a,-b][-d,e]
+def filter_genefam(genome_chr_list):
+    common_genes = {}
+    filtered_gene_families = set()
+    filtered_gene_count = []
+    i = 0
+    for genome in genome_chr_list:
+        gene_list = get_gene_list(genome)
+        if i == 0:
+            common_genes = set(gene_list)
+        else:
+            common_genes = common_genes.intersection(set(gene_list))
+        i = 1
+    for genome in genome_chr_list:
+        count = 0
+        j = 0
+        while j < len(genome):
+            chromosome = genome[j]
+            k = 0
+            while k < len(chromosome[2]):
+                gene = chromosome[2][k]
+                if gene not in common_genes and reverse(gene) not in common_genes:
+                    count += 1
+                    filtered_gene_families.add(set_gene_family(gene)) 
+                    if chromosome[1] == 'C':
+                        chromosome[2] = [reverse(x) for x in chromosome[2][0:k][::-1]] + [reverse(x) for x in chromosome[2][k+1:-1][::-1]]
+                        chromosome[1] = 'L'
+                        k -= 1
+                    elif chromosome[1] == 'L':
+                        if chromosome[2][k+1:] != []:
+                            genome.insert(j+1, [chromosome[0],'L',chromosome[2][k+1:]])
+                        if k == 0:
+                            genome.remove(chromosome)
+                            j -= 1
+                        else:    
+                            chromosome[2] = chromosome[2][0:k]
+                k += 1        
+            j += 1
+        filtered_gene_count.append(count)    
+    return(genome_chr_list,filtered_gene_families, filtered_gene_count)
 
 #Adjacency weight function
 def wtAdj(adj, adj_list):
@@ -689,42 +764,66 @@ def MWMedges(G, total_adj_list):
 #Median function
 #---------------------------------------------------------------------------
 #Finds the median of all given genomes in the input file
-def median(filename):
+def median(filename, outputfile, logfile):
     string = open(filename, "r").read()
     string_list = string.split("\n")
     string_list = [line for line in string_list if line and line[0] != '#']
     genome_list = []
-    chr_list = []
+    genome_chr_list = []
 
     i = -1
     for line in string_list:
         if line and line[-1] not in {')','|'}:
             i += 1
             genome_list.append([])
-            chr_list.append([])
+            genome_chr_list.append([])
             genome_list = update_genome_list(genome_list, line, i)
         elif line[-1] == '|':
             line = line.split(' ')
             line = [x for x in line if x != '|']
             genome_list = update_chr_list(genome_list, line[0], i)
-            chr_list = update_chr_data(chr_list, line, 'L', i)
+            genome_chr_list = update_chr_data(genome_chr_list, line, 'L', i)
         else:
             line = line.split(' ')
             line[-1] = line[1]
             genome_list = update_chr_list(genome_list, line[0], i)
-            chr_list = update_chr_data(chr_list, line, 'C', i)      
+            genome_chr_list = update_chr_data(genome_chr_list, line, 'C', i)  
 
+    #genome_chr_list, filtered_gene_families, filtered_gene_count = filter_genefam(genome_chr_list)
+
+    j = 0
+    while j + 1 < len(genome_list):
+        if set(get_gene_list(genome_chr_list[j])) != set(get_gene_list(genome_chr_list[j+1])):  #If different set of gene families, terminate program.
+            logfile.write("Error message: All genomes must have the same set of gene families.")
+            quit()
+        else:
+            j += 1
+
+    gene_count = [0] * len(genome_list)
     TD_from_arrays = [0] * len(genome_list)
     SGCC = [0] * len(genome_list)
+
     i = 0
-    for genome in chr_list:
-        genome, TD_from_arrays[i] = remove_TDA(genome)
-        genome, SGCC[i] = remove_SGCC(genome)
+    for genome in genome_chr_list:
+        for chromosome in genome:
+            if chromosome[1] == 'L':
+                gene_count[i] += len(chromosome[2])
+            else:
+                gene_count[i] += len(chromosome[2]) - 1
+        i += 1
+    
+    i = 0
+    for genome in genome_chr_list:
+        logfile.write("\nNo.of genes in Genome "+str(i+1)+": "+str(gene_count[i]))
+        genome, TD_from_arrays[i], gene_count[i] = remove_TDA(genome, logfile)
+        logfile.write("\nNo.of genes in Genome "+str(i+1)+" after removing TDAs: "+str(gene_count[i]))
+        genome, SGCC[i], gene_count[i] = remove_SGCC(genome, logfile)
+        logfile.write("\nNo.of genes in Genome "+str(i+1)+" after removing duplicate SGCCs: "+str(gene_count[i])+'\n')
         i += 1
 
     adj_list = [] #list of adjs per genome
     total_gene_list = []    
-    for genome in chr_list:
+    for genome in genome_chr_list:
         adj_list.append(get_adj_list(genome))
         total_gene_list = list(set(total_gene_list + get_gene_list(genome)))
 
@@ -738,30 +837,32 @@ def median(filename):
 
     G = createGraph(adj_list, total_gene_list, total_adj_list)
     M = nx.max_weight_matching(G)
-    print(M)
-    print(MWMedges(G, total_adj_list))
+    outputfile.write("Maximum weight matching obtained: "+str(M)+"\n")
 
-    pos=nx.spring_layout(G)
-    nx.draw(G,pos,with_labels=True)
-    nx.draw_networkx_edge_labels(G,pos)
-    plt.axis('off')
-    plt.show()
+    kept_adj, disc_adj = MWMedges(G, total_adj_list)
+    outputfile.write("\nAdjacencies retained: \t"+str(kept_adj)+"\n")
+    logfile.write("\nAdjacencies discarded: \t"+str(disc_adj))
 
 
 
 
 #Input
 #---------------------------------------------------------------------------
-if len(argv) < 3:                                                           #Takes file with genomes as argument in command line        
-    print('Usage: python DSCJ_smd.py -d/-s/-m <genome_file>')
+if len(argv) < 4:                                                           #Takes file with genomes as argument in command line        
+    print('Usage: python DSCJ.py -d/-s/-m <inputfilename> <outputfilename>')
     exit(1)
 
+inputfilename = argv[2]
+outputfilename = argv[3]
+outputfile  = open(outputfilename+'.out', "w")
+logfile = open(outputfilename+'.log', "w")
+
 if argv[1] == '-d':
-    distance(argv[2])
+    distance(inputfilename, outputfile, logfile)
 elif argv[1] == '-s':
-    scenario(argv[2])
+    scenario(inputfilename, outputfile, logfile)
 elif argv[1] == '-m':
-    median(argv[2])
+    median(inputfilename, outputfile, logfile)
 else:
     print('Incorrect usage')
-    print('Usage: python DSCJ_smd.py -d/-s/-m <genome_file>')
+    print('Usage: python DSCJ.py -d/-s/-m <inputfilename> <outputfilename>')

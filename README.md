@@ -11,13 +11,14 @@ The DSCJ_smd.py is able to do the following:
 The code is composed of a set of Python scripts. It requires the following to be available:
 
 * python (3)
+* networkx library, which is available at: https://networkx.github.io/
 
 
 ### Usage
 
 Use the following command to run the script:
 
-python DSCJ.py -s/-m/-d <inputfile>
+python DSCJ.py -s/-m/-d <inputfile> <outputfile>
 
 Use -s for computing the optimal scenario
     -m for computing the median
@@ -35,16 +36,9 @@ The input file should have the following format.
 
 Example:
 Genome 1:
-a -b c |
--d e f g )
+Chr1_name a -b c |
+Chr2_name -d e f g )
 
 Genome 2:
-a -b c d )
-e -f g |
-
-### Files
-
-Three main files:
-The main python script DSCJ_smd.py.
-A script to format the input as required.
-The output file.
+Chr1_name a -b c d )
+Chr2_name e -f g |
