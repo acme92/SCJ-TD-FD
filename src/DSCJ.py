@@ -267,6 +267,18 @@ def get_adj_list(chr_list):
             adj_list.append([left, right])
     return adj_list
 
+#Provides a list of cuts and joins
+def unpreserved_adj(preserved_adj, adj_list):
+    for adj in preserved_adj:
+        if adj in adj_list:
+            adj_list.remove(adj)
+        elif list(reversed(adj)) in adj_list:
+            adj_list.remove(list(reversed(adj)))
+
+    #print("Cuts: ", n_cuts)    
+    #print("A_adj length: ", len(A_adj))
+    return adj_list
+
 
 
 #Distance function
@@ -296,17 +308,27 @@ def distance(inputfilename, outputfile, logfile):
 
     preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]      #Intersection of adjacency sets, A and D
     logfile.write('\nNo. of adjacencies in common: '+str(len(preserved_adj))+'\n')
+    logfile.write('\nAdjacencies: \n')
+    for adj in preserved_adj:
+        logfile.write('\n'+str(adj))    
+    
     n_cuts = len(A_adj) - len(preserved_adj)                                #Adjacencies seen in A but NOT preserved in D
     n_joins = len(D_adj) - len(preserved_adj)                               #Adjacencies seen in D but NOT preserved from A
 
+    adj_cuts = unpreserved_adj(preserved_adj, A_adj)
+    adj_joins = unpreserved_adj(preserved_adj, D_adj)
+
     d_DSCJ = n_cuts + n_joins + 2*n_duplicates + TD_from_arrays + SGCC      #d_DSCJ(A,D) = |A-D| + |D-A| + 2*n_d + TDA.
 
-    outputfile.write('DSCJ distance \t\t= ' + str(d_DSCJ) + '\n')
+    outputfile.write('\nDSCJ distance \t\t= ' + str(d_DSCJ) + '\n')
     outputfile.write('No. of cuts   \t\t= ' + str(n_cuts) + '\n')
     outputfile.write('No. of joins  \t\t= ' + str(n_joins) + '\n')
     outputfile.write('No. of duplicates  \t= ' + str(n_duplicates) + '\n')
     outputfile.write('No. of TDA    \t\t= ' + str(TD_from_arrays) + '\n')
     outputfile.write('No. of SGCC   \t\t= ' + str(SGCC) + '\n')
+
+    outputfile.write('\nCuts: '+'\n'+str(adj_cuts)+'\n\n')
+    outputfile.write('Joins: '+'\n'+str(adj_joins))
 
 
 
@@ -610,10 +632,7 @@ def scenario(filename, outputfile, logfile):
                 else:                                                               #If context not conserved, remaining genes matched with FDs
                     FD, Idx_dict, D_dict = updateFD(FD, 2, gene, Idx_dict, D_dict)                              
 
-    logfile.write('\n\nNo. of Floating Duplicates:\t'+str(len(FD)))                
-    logfile.write('\n\nList of Floating Duplicates:\t'+str(FD))
-    logfile.write('\n\nNo. of Tandem Duplicates:\t'+str(len(TD)))
-    logfile.write('\n\nList of Tandem Duplicates:\t'+str(TD))                
+               
     #All Cases covered. Create adjacency lists from dictionaries
 
     #Logic:
@@ -652,11 +671,19 @@ def scenario(filename, outputfile, logfile):
     for x in FD:                                                #Append (g_h g_t) adjacencies for each FD
         A_adj.append([(x, 'h'),(x, 't')])   
 
-    preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]      #Intersection of adjacency sets, A' and D'
+    preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]      #Intersection of adjacency sets, A' and D
+
+
     logfile.write('\n\nNo. of adjacencies in common: '+str(len(preserved_adj))+'\n')
+    logfile.write('\nAdjacencies: \n')
+    for adj in preserved_adj:
+        logfile.write('\n'+str(adj))    
     n_cuts = len(A_adj) - len(preserved_adj)                    #Adjacencies seen in A' but NOT preserved in D'
     n_joins = len(D_adj) - len(preserved_adj)                   #Adjacencies seen in D' but NOT preserved from A'
     n_duplicates = len(FD) + len(TD)
+
+    adj_cuts = unpreserved_adj(preserved_adj, A_adj)
+    adj_joins = unpreserved_adj(preserved_adj, D_adj)    
 
     distance = n_cuts + n_joins + n_duplicates + TD_from_arrays + SGCC  #d_DSCJ(A,D) = |A'-D'| + |D'-A'| + n_d + TDA + SGCC.
 
@@ -666,6 +693,16 @@ def scenario(filename, outputfile, logfile):
     outputfile.write('No. of duplicates  \t= ' + str(n_duplicates) + '\n')
     outputfile.write('No. of TDA    \t\t= ' + str(TD_from_arrays) + '\n')
     outputfile.write('No. of SGCC   \t\t= ' + str(SGCC) + '\n')
+
+    outputfile.write('\n\nNo. of Floating Duplicates:\t'+str(len(FD)))                
+    outputfile.write('\n\nList of Floating Duplicates:\t'+str(FD))
+    outputfile.write('\n\nNo. of Tandem Duplicates:\t'+str(len(TD)))
+    outputfile.write('\n\nList of Tandem Duplicates:\t'+str(TD)+'\n') 
+
+    outputfile.write('\nCuts: '+'\n'+str(adj_cuts)+'\n\n')
+    outputfile.write('Joins: '+'\n'+str(adj_joins))
+
+
 
 
 
@@ -721,12 +758,12 @@ def filter_genefam(genome_chr_list):
     return(genome_chr_list,filtered_gene_families, filtered_gene_count)
 
 #Adjacency weight function
-def wtAdj(adj, adj_list):
+def wtAdj(adj, genomes):
     weight = 0
-    for genome in adj_list:
+    for genome in genomes:
         if adj in genome or adj[::-1] in genome:    
             weight += 1
-    weight = 2*weight - len(adj_list)
+    weight = 2*weight - len(genomes)
     return weight
 
 #Create MWM graph
@@ -837,11 +874,13 @@ def median(filename, outputfile, logfile):
 
     G = createGraph(adj_list, total_gene_list, total_adj_list)
     M = nx.max_weight_matching(G)
-    outputfile.write("Maximum weight matching obtained: "+str(M)+"\n")
+    #outputfile.write("Maximum weight matching obtained: "+str(M)+"\n")
 
     kept_adj, disc_adj = MWMedges(G, total_adj_list)
     outputfile.write("\nAdjacencies retained: \t"+str(kept_adj)+"\n")
     logfile.write("\nAdjacencies discarded: \t"+str(disc_adj))
+
+
 
 
 

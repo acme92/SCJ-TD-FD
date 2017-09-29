@@ -47,3 +47,29 @@ Chr2_name -d e f g )
 Genome 2:
 Chr1_name a -b c d )
 Chr2_name e -f g |
+
+###Output file format
+Every implementation (-d/-s/-m) of DSCJ.py yields two files - a log file and an output file.
+The output files contain the following information:
+
+* Distance (-d):
+- 	The SCJTDFD distance and a breakdown of events (SCJ, TD, FD, tandem arrays and single gene circular chromosomes)
+- 	Two lists of adjacencies, Cuts and Joins. Every element of the list is of the format: 
+	[('gene1_name','extremity'),('gene2_name','extremity')], where extremity = 'h' or 't'.
+
+* Scenario (-s):
+-	The SCJTDFD distance and a breakdown of events (SCJ, TD, FD, tandem arrays and single gene circular chromosomes)
+-	Two lists of genes, Floating Duplications and Tandem Duplications. Every gene in the list has a copy number associated with it.
+	For instance, the 3rd copy of gene 'a' seen in D will be named as 'acopy3'. This is done to differentiate genes from the same family.
+- 	Two lists of adjacencies, Cuts and Joins. Every element of the list is of the format: 
+	[('gene1_name','extremity'),('gene2_name','extremity')], where extremity = 'h' or 't'.
+
+* Median (-m):
+-	List of adjacencies retained in the median genome.
+	(('gene1_name','extremity'),('gene2_name','extremity')), where extremity = 'h' or 't'.
+-	Score of the median genome.	
+
+
+
+
+
