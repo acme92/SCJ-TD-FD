@@ -37,7 +37,7 @@ The input file should have the following format.
 5. Lines containing the genome name should not end with '|' or ')'.
 6. Any line that is a comment should start with a '#'. 
 7. For -d and -s, the input file should contain exactly two genomes, both having the same set of gene families.
-8. For -m, the input file should have at least two genomes.
+8. For -m, the input file should have at least two genomes and all genomes should have the same set of gene families.
 
 Example:
 Genome 1:
@@ -47,6 +47,11 @@ Chr2_name -d e f g )
 Genome 2:
 Chr1_name a -b c d )
 Chr2_name e -f g |
+
+### Examples
+The directory test contains a small example. The resuls files have been obtained by the commands
+python src/DSCJ.py -s test/input test/output_scenario
+python src/DSCJ.py -d test/input test/output_distance
 
 ###Output file format
 Every implementation (-d/-s/-m) of DSCJ.py yields two files - a log file and an output file.
