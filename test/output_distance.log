@@ -1,0 +1,10 @@
+No. of chromosomes in A: 	969
+No. of chromosomes in D: 	1018
+
+No. of genes in A = 12016
+No. of genes in D = 12240
+
+No.of genes in D after removing TDAs: 12205
+No.of genes in D after removing duplicate SGCCs: 12205
+
+No. of adjacencies in common: 10488
