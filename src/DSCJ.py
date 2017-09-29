@@ -17,9 +17,6 @@ The following code consists of three main functions:
 
 from sys import argv
 import random
-import networkx as nx
-
-
 
 #Using python 3 interpreter
 
@@ -308,9 +305,9 @@ def distance(inputfilename, outputfile, logfile):
 
     preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]      #Intersection of adjacency sets, A and D
     logfile.write('\nNo. of adjacencies in common: '+str(len(preserved_adj))+'\n')
-    logfile.write('\nAdjacencies: \n')
-    for adj in preserved_adj:
-        logfile.write('\n'+str(adj))    
+#    logfile.write('\nAdjacencies: \n')
+#    for adj in preserved_adj:
+#        logfile.write('\n'+str(adj))    
     
     n_cuts = len(A_adj) - len(preserved_adj)                                #Adjacencies seen in A but NOT preserved in D
     n_joins = len(D_adj) - len(preserved_adj)                               #Adjacencies seen in D but NOT preserved from A
@@ -675,9 +672,10 @@ def scenario(filename, outputfile, logfile):
 
 
     logfile.write('\n\nNo. of adjacencies in common: '+str(len(preserved_adj))+'\n')
-    logfile.write('\nAdjacencies: \n')
-    for adj in preserved_adj:
-        logfile.write('\n'+str(adj))    
+#    logfile.write('\nAdjacencies: \n')
+#    for adj in preserved_adj:
+#        logfile.write('\n'+str(adj))
+
     n_cuts = len(A_adj) - len(preserved_adj)                    #Adjacencies seen in A' but NOT preserved in D'
     n_joins = len(D_adj) - len(preserved_adj)                   #Adjacencies seen in D' but NOT preserved from A'
     n_duplicates = len(FD) + len(TD)
@@ -902,6 +900,7 @@ elif argv[1] == '-s':
     scenario(inputfilename, outputfile, logfile)
 elif argv[1] == '-m':
     median(inputfilename, outputfile, logfile)
+    import networkx as nx
 else:
     print('Incorrect usage')
     print('Usage: python DSCJ.py -d/-s/-m <inputfilename> <outputfilename>')
