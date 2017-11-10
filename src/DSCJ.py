@@ -17,6 +17,10 @@ The following code consists of three main functions:
 
 from sys import argv
 import random
+import networkx as nx
+import re
+
+
 
 #Using python 3 interpreter
 
@@ -252,7 +256,7 @@ def remove_SGCC(chr_list,logfile):
 def get_adj_list(chr_list):
     adj_list = []                                                           #List of adjacencies where 
     for chromosome in chr_list:                                             #every adjacency is of the format:
-        for gene_idx in range(len(chromosome[2]) - 1):                      #[(g1,'h'/'t'),(g2,'h'/'t')]
+        for gene_idx in range(len(chromosome[2]) - 1):                      #((g1,'h'/'t'),(g2,'h'/'t'))
             if chromosome[2][gene_idx][0] == '-':
                 left = (chromosome[2][gene_idx][1:], 't')
             else:
@@ -261,7 +265,7 @@ def get_adj_list(chr_list):
                 right = (chromosome[2][gene_idx + 1][1:], 'h')
             else:
                 right = (chromosome[2][gene_idx + 1], 't')
-            adj_list.append([left, right])
+            adj_list.append((left, right))
     return adj_list
 
 #Provides a list of cuts and joins
@@ -269,8 +273,8 @@ def unpreserved_adj(preserved_adj, adj_list):
     for adj in preserved_adj:
         if adj in adj_list:
             adj_list.remove(adj)
-        elif list(reversed(adj)) in adj_list:
-            adj_list.remove(list(reversed(adj)))
+        elif adj[::-1] in adj_list:
+            adj_list.remove(adj[::-1])
 
     #print("Cuts: ", n_cuts)    
     #print("A_adj length: ", len(A_adj))
@@ -303,11 +307,11 @@ def distance(inputfilename, outputfile, logfile):
     A_adj = get_adj_list(A)
     D_adj = get_adj_list(D)
 
-    preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]      #Intersection of adjacency sets, A and D
+    preserved_adj = [adj for adj in A_adj if adj in D_adj or adj[::-1] in D_adj]      #Intersection of adjacency sets, A and D
     logfile.write('\nNo. of adjacencies in common: '+str(len(preserved_adj))+'\n')
-#    logfile.write('\nAdjacencies: \n')
-#    for adj in preserved_adj:
-#        logfile.write('\n'+str(adj))    
+    logfile.write('\nAdjacencies: \n')
+    for adj in preserved_adj:
+        logfile.write('\n'+str(adj))    
     
     n_cuts = len(A_adj) - len(preserved_adj)                                #Adjacencies seen in A but NOT preserved in D
     n_joins = len(D_adj) - len(preserved_adj)                               #Adjacencies seen in D but NOT preserved from A
@@ -495,7 +499,7 @@ def scenario(filename, outputfile, logfile):
     D, SGCC, gene_count[1] = remove_SGCC(D, logfile)
     logfile.write("\nNo.of genes in D after removing duplicate SGCCs: "+str(gene_count[1])+'\n')
     
-    A_dict = {}     #Dictionary for A. KEY = Gene Family Name. VALUE = (Sign, Left neighbor, Left neighbor index, Right neighbor, Right neighbor index)
+    A_dict = {}     #Dictionary for A. KEY = Gene Family Name. VALUE = (Index, Sign, Left neighbor, Right neighbor)
     for i in range(len(A)):     
         if get_chr_type(A[i]) == 'C':
             A[i][2] = A[i][2][:-1]
@@ -523,7 +527,7 @@ def scenario(filename, outputfile, logfile):
                                 set_left_neighbor(D[i],j),
                                 set_right_neighbor(D[i],j),
                                 left_neighbor_posn(D[i],(i,j)),
-                                right_neighbor_posn(D[i],(i,j))     
+                                right_neighbor_posn(D[i],(i,j))    
                             ]                        
 
     coords = []                                     #List of co-ordinates of genes in A, shuffled for randomness                            
@@ -637,6 +641,7 @@ def scenario(filename, outputfile, logfile):
     #If right neighbor (RN) exists, adjacency is [left neighbor of RN, RN] (head or tail chosen according to orientation)
     D_adj = []                                                  #Form adjacency set for relabeled genome D'                         
     for x in sorted((k,v) for (k,v) in D_dict.items()):
+        #print(x)
         left, right = None, None                                #All adjacencies of the format: [(g1,'h'/'t'),(g2,'h'/'t')]
         if x[1][5]:
             RNIdx = x[1][5]
@@ -648,11 +653,12 @@ def scenario(filename, outputfile, logfile):
                 right = (D_dict[x[0]][3][1:], 'h')
             else:
                 right = (D_dict[x[0]][3], 't')
-            D_adj.append([left, right])
+            D_adj.append((left, right))
 
     #print(D_adj)
     A_adj = []                                                  #Form adjacency set for relabeled genome A'
     for x in sorted((v[0],k) for (k,v) in A_dict.items()):
+        #print(x[0][0])
         left, right = None, None                                #All adjacencies of the format: [(g1,'h'/'t'),(g2,'h'/'t')] 
         if A_dict[x[1]][3]:
             RN = A_dict[x[1]][3]
@@ -664,17 +670,14 @@ def scenario(filename, outputfile, logfile):
                 right = (RN[1:], 'h')
             else:
                 right = (RN, 't')
-            A_adj.append([left, right])         
+            A_adj.append((left, right))         
     for x in FD:                                                #Append (g_h g_t) adjacencies for each FD
-        A_adj.append([(x, 'h'),(x, 't')])   
+        A_adj.append(((x, 'h'),(x, 't')))   
 
-    preserved_adj = [adj for adj in A_adj if adj in D_adj or list(reversed(adj)) in D_adj]      #Intersection of adjacency sets, A' and D
+    preserved_adj = [adj for adj in A_adj if adj in D_adj or adj[::-1] in D_adj]      #Intersection of adjacency sets, A' and D
 
 
     logfile.write('\n\nNo. of adjacencies in common: '+str(len(preserved_adj))+'\n')
-#    logfile.write('\nAdjacencies: \n')
-#    for adj in preserved_adj:
-#        logfile.write('\n'+str(adj))
 
     n_cuts = len(A_adj) - len(preserved_adj)                    #Adjacencies seen in A' but NOT preserved in D'
     n_joins = len(D_adj) - len(preserved_adj)                   #Adjacencies seen in D' but NOT preserved from A'
@@ -697,8 +700,43 @@ def scenario(filename, outputfile, logfile):
     outputfile.write('\n\nNo. of Tandem Duplicates:\t'+str(len(TD)))
     outputfile.write('\n\nList of Tandem Duplicates:\t'+str(TD)+'\n') 
 
-    outputfile.write('\nCuts: '+'\n'+str(adj_cuts)+'\n\n')
-    outputfile.write('Joins: '+'\n'+str(adj_joins))
+    logfile.write('\nList of common adjacencies: \n')
+    for adj in preserved_adj:
+        adj = list(adj)
+        adj[0], adj[1] = list(adj[0]), list(adj[1])
+        adj[0][0] = re.sub('copy\d+','',adj[0][0])
+        adj[1][0] = re.sub('copy\d+','',adj[1][0])
+        logfile.write('\n'+str(adj))
+
+    outputfile.write('\n\nList of Cuts: \n')
+    for adj in adj_cuts:
+        adj = list(adj)
+        adj[0], adj[1] = list(adj[0]), list(adj[1])
+        adj[0][0] = re.sub('copy\d+','',adj[0][0])
+        adj[1][0] = re.sub('copy\d+','',adj[1][0])
+        outputfile.write('\n'+str(adj)) 
+
+    outputfile.write('\n\nList of Joins: \n')
+    for adj in adj_joins:
+        adj = list(adj)
+        adj[0], adj[1] = list(adj[0]), list(adj[1])
+        adj[0][0] = re.sub('copy\d+','',adj[0][0])
+        adj[1][0] = re.sub('copy\d+','',adj[1][0])
+        outputfile.write('\n'+str(adj))       
+
+
+
+    outputfile.write('\n\nGene name: \t\tPosition in A -> Position in D\n')
+    i, j = 0, 0
+    for x in sorted((v[0],k) for (k,v) in A_dict.items()):
+        if x[0][0] != i:
+            i = x[0][0]
+            j = 0
+        Aidx = (i,j)
+        Didx = Idx_dict[x[1]][0]
+        gene_name = re.sub('copy\d+','',x[1]) 
+        outputfile.write(str(gene_name) + ': \t\t' + str(Aidx) + ' -> ' + str(Didx)+'\n')
+        j += 1
 
 
 
@@ -759,7 +797,7 @@ def filter_genefam(genome_chr_list):
 def wtAdj(adj, genomes):
     weight = 0
     for genome in genomes:
-        if adj in genome or adj[::-1] in genome:    
+        if adj in set(genome) or adj[::-1] in set(genome):    
             weight += 1
     weight = 2*weight - len(genomes)
     return weight
@@ -777,16 +815,15 @@ def createGraph(adj_list, total_gene_list, total_adj_list):
     return G
 
 #Max weight matching
-def MWMedges(G, total_adj_list):
+def MWMedges(G, total_adj_list, M):
     kept_adj = []
     disc_adj = []
     adj_kept_mwm = {}
     adj_info = {}
     for adj in total_adj_list:
         adj_kept_mwm[tuple(adj)] = False
-    M = nx.max_weight_matching(G)
     M_list = sorted(list(M.keys()))
-    for m1 in M_list:
+    for m1 in list(M.keys()):
         m2 = M[m1]
         adj_kept_mwm[(m1,m2)] = True
     for adj in total_adj_list:
@@ -824,8 +861,6 @@ def median(filename, outputfile, logfile):
             genome_list = update_chr_list(genome_list, line[0], i)
             genome_chr_list = update_chr_data(genome_chr_list, line, 'C', i)  
 
-    #genome_chr_list, filtered_gene_families, filtered_gene_count = filter_genefam(genome_chr_list)
-
     j = 0
     while j + 1 < len(genome_list):
         if set(get_gene_list(genome_chr_list[j])) != set(get_gene_list(genome_chr_list[j+1])):  #If different set of gene families, terminate program.
@@ -856,25 +891,30 @@ def median(filename, outputfile, logfile):
         logfile.write("\nNo.of genes in Genome "+str(i+1)+" after removing duplicate SGCCs: "+str(gene_count[i])+'\n')
         i += 1
 
-    adj_list = [] #list of adjs per genome
-    total_gene_list = []    
+    adj_list = [] #list of adjs, one row per genome
+    total_gene_list = []
+    i = 0    
     for genome in genome_chr_list:
+        i += 1
         adj_list.append(get_adj_list(genome))
         total_gene_list = list(set(total_gene_list + get_gene_list(genome)))
 
     total_adj_list = [] #set of adj of all genomes
+    i = 0
     for genome in adj_list:
+        i += 1
         for adj in genome:
-            if adj in total_adj_list or adj[::-1] in total_adj_list:
+            if adj in set(total_adj_list) or adj[::-1] in set(total_adj_list):
                 continue
             else:
                 total_adj_list.append(adj)  
 
+    #create a graph using the set of gene extremities as a vertex set
+    #find a maximum weight matching on this graph            
     G = createGraph(adj_list, total_gene_list, total_adj_list)
     M = nx.max_weight_matching(G)
-    #outputfile.write("Maximum weight matching obtained: "+str(M)+"\n")
 
-    kept_adj, disc_adj = MWMedges(G, total_adj_list)
+    kept_adj, disc_adj = MWMedges(G, total_adj_list, M)
     outputfile.write("\nAdjacencies retained: \t"+str(kept_adj)+"\n")
     logfile.write("\nAdjacencies discarded: \t"+str(disc_adj))
 
@@ -900,7 +940,6 @@ elif argv[1] == '-s':
     scenario(inputfilename, outputfile, logfile)
 elif argv[1] == '-m':
     median(inputfilename, outputfile, logfile)
-    import networkx as nx
 else:
     print('Incorrect usage')
     print('Usage: python DSCJ.py -d/-s/-m <inputfilename> <outputfilename>')
