@@ -726,7 +726,7 @@ def scenario(filename, outputfile, logfile):
 
 
 
-    outputfile.write('\n\nGene name: \t\tPosition in A -> Position in D\n')
+    outputfile.write('\n\nGene name: \t\tPosition in Ancestor -> Position in Descendant\n')
     i, j = 0, 0
     for x in sorted((v[0],k) for (k,v) in A_dict.items()):
         if x[0][0] != i:
@@ -737,6 +737,13 @@ def scenario(filename, outputfile, logfile):
         gene_name = re.sub('copy\d+','',x[1]) 
         outputfile.write(str(gene_name) + ': \t\t' + str(Aidx) + ' -> ' + str(Didx)+'\n')
         j += 1
+
+    outputfile.write('\n\nFloating duplications\n')    
+    outputfile.write('\nGene name: \t\tPosition in Descendant\n')        
+    for x in FD:
+        Didx = Idx_dict[x][0]
+        gene_name = re.sub('copy\d+','',x)
+        outputfile.write(str(gene_name) + ': \t\t' + str(Didx)+'\n')
 
 
 
