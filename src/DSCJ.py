@@ -816,10 +816,13 @@ def createGraph(adj_list, total_gene_list, total_adj_list):
         G.add_node((g,'t'))
         G.add_node((g,'h'))
     edge_list = []
+    wt_dict = {}
     for adj in total_adj_list:
-        edge_list.append((adj[0],adj[1],wtAdj(adj, adj_list)))
+        wt = wtAdj(adj, adj_list)
+        edge_list.append((adj[0],adj[1],wt))
+        wt_dict[(adj[0], adj[1])] = wt
     G.add_weighted_edges_from(edge_list)
-    return G
+    return G, wt_dict
 
 #Max weight matching
 def MWMedges(G, total_adj_list, M):
@@ -906,6 +909,14 @@ def median(filename, outputfile, logfile):
         adj_list.append(get_adj_list(genome))
         total_gene_list = list(set(total_gene_list + get_gene_list(genome)))
 
+    Nd = 0
+    i = 0
+    for genome in adj_list:
+        n_adj = len(genome)
+        n_dup = gene_count[i] - len(total_gene_list)
+        Nd += 2*n_dup + n_adj
+        i += 1
+
     total_adj_list = [] #set of adj of all genomes
     i = 0
     for genome in adj_list:
@@ -918,12 +929,20 @@ def median(filename, outputfile, logfile):
 
     #create a graph using the set of gene extremities as a vertex set
     #find a maximum weight matching on this graph            
-    G = createGraph(adj_list, total_gene_list, total_adj_list)
+    G, wt_dict = createGraph(adj_list, total_gene_list, total_adj_list)
     M = nx.max_weight_matching(G)
 
     kept_adj, disc_adj = MWMedges(G, total_adj_list, M)
-    outputfile.write("\nAdjacencies retained: \t"+str(kept_adj)+"\n")
+    outputfile.write("Adjacencies retained: \t"+str(kept_adj)+"\n")
     logfile.write("\nAdjacencies discarded: \t"+str(disc_adj))
+
+    wt_matching = 0
+    for x in kept_adj:
+        if x in wt_dict or x[::-1] in wt_dict:
+            wt_matching += wt_dict[x]
+
+    median_score = Nd - wt_matching
+    outputfile.write("\nScore of median: \t"+str(median_score)+"\n")
 
 
 
